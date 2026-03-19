@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Logs
 logs
 *.log
@@ -22,3 +23,21 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+=======
+# node_modules
+node_modules/
+dist/
+dist-ssr/
+*.local
+
+# 選填：如果你有用 Mac，這能過濾掉討厭的系統暫存檔
+.DS_Store
+
+# Capacitor 相關
+ios/
+android/
+
+# 環境變數
+.env
+.env.local
+>>>>>>> e8950eda76c5cc9948c86372289f8cb729fcac24
