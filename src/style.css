@@ -1,0 +1,15 @@
+:root {
+  --rb-bg-warm: #F7F5F2;    /* 暖白紙本底色 */
+  --rb-primary: #2E4A3F;    /* 墨綠主色 */
+  --rb-text-main: #1C1C1C;  /* 深灰 */
+  --rb-text-sub: #8C8C8C;   /* 輔助灰 */
+  --rb-border: #E5E1DA;     /* 邊框色 */
+}
+
+body {
+  margin: 0;
+  background-color: var(--rb-bg-warm);
+  color: var(--rb-text-main);
+  /* 使用 Apple 的標準字體，讓它有原生 iOS 感 */
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
+}
