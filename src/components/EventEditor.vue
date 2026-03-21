@@ -1,60 +1,76 @@
 <template>
-  <div class="modal-overlay" @click.self="$emit('close')">
-    <div class="modal-card">
-      <h3 class="modal-title">{{ isNew ? '新增行程' : '修改行程細節' }}</h3>
-      
-      <div class="form-group"><label>行程名稱</label><input v-model="localEvent.title" placeholder="要做什麼？"></div>
-      <div class="form-group"><label>地點</label><input v-model="localEvent.location" placeholder="地點名稱"></div>
-      
-      <div class="form-group">
-        <label>備註小撇步</label>
-        <textarea v-model="localEvent.note" rows="2" placeholder="記下月台、預約號碼..."></textarea>
+  <div class="editor-overlay" @click.self="$emit('close')">
+    <div class="editor-card">
+      <div class="editor-header">
+        <h3>{{ isNew ? '新增行程' : '編輯行程' }}</h3>
+        <button class="close-btn" @click="$emit('close')">×</button>
       </div>
 
-      <div class="form-row">
-        <div class="form-group flex-1"><label>預算 (¥)</label><input v-model.number="localEvent.budget" type="number"></div>
-        <div class="form-group flex-1">
-          <label>分類</label>
-          <select v-model="localEvent.category">
-            <option v-for="c in ['餐飲','交通','住宿','購物','景點','其他']" :key="c">{{c}}</option>
-          </select>
+      <div class="editor-body">
+        <div class="input-group">
+          <label>行程名稱</label>
+          <input v-model="localEvent.title" placeholder="例如：博多運河城" />
         </div>
-      </div>
 
-      <div class="form-group">
-        <label>圖片附件 (點擊 + 上傳)</label>
-        <div class="upload-container">
-          <div class="img-previews">
-            <div v-for="(img, idx) in localEvent.images" :key="idx" class="thumb-wrapper">
-              <img :src="img" class="mini-thumb" />
-              <button class="delete-img-btn" @click.stop="removeImage(idx)">×</button>
+        <div class="option-row">
+          <label class="checkbox-label">
+            <input type="checkbox" v-model="localEvent.isAtAccommodation" />
+            📍 此行程位於當日住宿點
+          </label>
+        </div>
+
+        <div class="input-group">
+          <label>地點</label>
+          <input 
+            v-model="localEvent.location" 
+            :disabled="localEvent.isAtAccommodation"
+            :placeholder="localEvent.isAtAccommodation ? '已自動連動住宿點' : '輸入地點'" 
+          />
+        </div>
+
+        <div class="time-row">
+          <div class="input-group">
+            <label>開始時間</label>
+            <div class="time-picker">
+              <input type="number" v-model="localEvent.hour" min="0" max="23" /> :
+              <input type="number" v-model="localEvent.minute" min="0" max="59" />
             </div>
-            
-            <div class="plus-box">
-              <input type="file" @change="handleFileUpload" accept="image/*" multiple class="file-input">
-              <span>+</span>
+          </div>
+          <div class="input-group">
+            <label>結束時間</label>
+            <div class="time-picker">
+              <input type="number" v-model="localEvent.endHour" min="0" max="23" /> :
+              <input type="number" v-model="localEvent.endMinute" min="0" max="59" />
             </div>
           </div>
         </div>
+
+        <div class="input-group">
+          <label>預算 (JPY)</label>
+          <input type="number" v-model="localEvent.budget" />
+        </div>
+
+        <div class="input-group">
+          <label>分類</label>
+          <select v-model="localEvent.category">
+            <option>景點</option>
+            <option>美食</option>
+            <option>交通</option>
+            <option>購物</option>
+            <option>飯店</option>
+            <option>其他</option>
+          </select>
+        </div>
+
+        <div class="input-group">
+          <label>備註</label>
+          <textarea v-model="localEvent.note" rows="3"></textarea>
+        </div>
       </div>
 
-      <div class="time-edit-row">
-        <div class="time-col">
-          <label>開始</label>
-          <div class="time-inputs"><input v-model.number="localEvent.hour" type="number"> : <input v-model.number="localEvent.minute" type="number"></div>
-        </div>
-        <div class="time-col">
-          <label>結束</label>
-          <div class="time-inputs"><input v-model.number="localEvent.endHour" type="number"> : <input v-model.number="localEvent.endMinute" type="number"></div>
-        </div>
-      </div>
-
-      <div class="modal-actions">
-        <button v-if="!isNew" @click="$emit('delete')" class="btn-delete">刪除行程</button>
-        <div class="action-row">
-          <button @click="$emit('close')" class="btn-cancel">取消</button>
-          <button @click="$emit('save', localEvent)" class="btn-primary">儲存行程</button>
-        </div>
+      <div class="editor-footer">
+        <button v-if="!isNew" class="delete-btn" @click="$emit('delete')">刪除</button>
+        <button class="save-btn" @click="handleSave">儲存</button>
       </div>
     </div>
   </div>
@@ -63,99 +79,61 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 import type { TripEvent } from '../types'
+import { useTripStore } from '../stores/tripStore'
 
 const props = defineProps<{
-  event: Partial<TripEvent>,
+  event: TripEvent
   isNew: boolean
 }>()
 
-const emit = defineEmits(['close', 'save', 'delete'])
+const emit = defineEmits(['save', 'close', 'delete'])
+const tripStore = useTripStore()
 
-// 複製一份本地資料，避免直接更動父元件
-const localEvent = ref({ ...props.event })
+// 建立本地副本，避免直接修改 props
+const localEvent = ref<TripEvent>({ ...props.event })
 
-// 當傳入的 event 改變時，同步更新本地資料
-watch(() => props.event, (newVal) => {
-  localEvent.value = { ...newVal }
-}, { deep: true })
-
-// 💡 刪除圖片邏輯
-const removeImage = (index: number) => {
-  localEvent.value.images?.splice(index, 1)
-}
-
-const handleFileUpload = (e: any) => {
-  const files = e.target.files
-  if (!files) return
-  if (!localEvent.value.images) localEvent.value.images = []
-
-  Array.from(files).forEach((file: any) => {
-    const reader = new FileReader()
-    reader.onload = (event) => {
-      localEvent.value.images?.push(event.target?.result as string)
+// 💡 核心邏輯：當勾選「位於住宿點」時，自動填入飯店名稱
+watch(() => localEvent.value.isAtAccommodation, (newVal) => {
+  if (newVal) {
+    const hotel = tripStore.lodging[localEvent.value.dateIndex]
+    if (hotel) {
+      localEvent.value.location = hotel.name
     }
-    reader.readAsDataURL(file)
-  })
+  }
+})
+
+const handleSave = () => {
+  if (!localEvent.value.title) {
+    alert('請輸入行程名稱')
+    return
+  }
+  emit('save', { ...localEvent.value })
 }
 </script>
 
 <style scoped>
-.modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(35, 31, 64, 0.4); backdrop-filter: blur(8px); display: flex; justify-content: center; align-items: center; z-index: 2000; padding: 20px; }
-.modal-card { background: white; padding: 30px; border-radius: 28px; width: 100%; max-width: 450px; box-shadow: 0 15px 40px rgba(0,0,0,0.1); max-height: 90vh; overflow-y: auto; }
-.modal-title { margin-top: 0; color: var(--rt-primary); font-size: 20px; font-weight: 800; margin-bottom: 20px; }
-.form-row { display: flex; gap: 15px; }
-.flex-1 { flex: 1; }
-.form-group { margin-bottom: 16px; display: flex; flex-direction: column; gap: 6px; }
-.form-group label { font-size: 12px; color: var(--rt-muted); font-weight: 700; padding-left: 4px;}
-.form-group input, .form-group select, .form-group textarea { padding: 14px; border: 2px solid var(--rt-bg); border-radius: 14px; font-size: 16px; outline: none; font-family: inherit; transition: 0.2s; }
-.form-group input:focus { border-color: var(--rt-secondary); }
-
-.time-edit-row { display: flex; gap: 15px; background: var(--rt-bg); padding: 18px; border-radius: 18px; margin-bottom: 24px; }
-.time-inputs { display: flex; align-items: center; justify-content: center; gap: 5px; font-weight: 800; font-size: 18px; color: var(--rt-primary); }
-.time-inputs input { width: 50px; border: none; background: transparent; text-align: center; font-size: 18px; color: var(--rt-primary); font-weight: 800; }
-
-/* 💡 圖片上傳區美化 */
-.img-previews { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; margin-top: 5px; }
-
-.thumb-wrapper { position: relative; width: 60px; height: 60px; }
-.mini-thumb { width: 100%; height: 100%; border-radius: 12px; object-fit: cover; border: 2px solid var(--rt-bg); }
-
-/* 💡 刪除按鈕樣式 */
-.delete-img-btn {
-  position: absolute; top: -5px; right: -5px; 
-  width: 20px; height: 20px; border-radius: 10px; 
-  background: #FF4D4D; color: white; border: none; 
-  font-size: 14px; font-weight: 800; line-height: 1;
-  display: flex; justify-content: center; align-items: center;
-  cursor: pointer; box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+.editor-overlay {
+  position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center;
+  z-index: 1000; padding: 20px; box-sizing: border-box;
 }
-
-.plus-box { 
-  position: relative; width: 60px; height: 60px; border-radius: 12px; 
-  border: 2px dashed var(--rt-muted); display: flex; justify-content: center; 
-  align-items: center; color: var(--rt-muted); font-size: 24px; background: #F8F7FF; 
+.editor-card {
+  background: white; width: 100%; max-width: 400px; border-radius: 24px;
+  max-height: 90vh; overflow-y: auto; padding: 25px;
 }
-.file-input { position: absolute; width: 100%; height: 100%; opacity: 0; cursor: pointer; z-index: 2; }
-
-.modal-actions { display: flex; flex-direction: column; gap: 10px; }
-.action-row { display: flex; gap: 10px; width: 100%; }
-.btn-primary { flex: 1; padding: 16px; border-radius: 16px; border: none; background: var(--rt-primary); color: white; font-weight: 700; cursor: pointer; }
-.btn-cancel { flex: 1; padding: 16px; border-radius: 16px; border: none; background: var(--rt-bg); color: var(--rt-primary); font-weight: 700; cursor: pointer; }
-.btn-delete { width: 100%; padding: 12px; border: 1px solid #D65D5D; color: #D65D5D; background: transparent; border-radius: 14px; cursor: pointer; margin-bottom: 5px; }
+.editor-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+.close-btn { background: none; border: none; font-size: 28px; color: var(--rt-muted); cursor: pointer; }
+.input-group { margin-bottom: 15px; }
+.input-group label { display: block; font-size: 13px; font-weight: 700; color: var(--rt-muted); margin-bottom: 6px; }
+.input-group input, .input-group select, .input-group textarea {
+  width: 100%; padding: 12px; border: 1px solid #eee; border-radius: 12px; font-size: 15px; box-sizing: border-box;
+}
+.option-row { margin-bottom: 15px; background: var(--rt-bg); padding: 10px; border-radius: 12px; }
+.checkbox-label { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 700; color: var(--rt-primary); cursor: pointer; }
+.time-row { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+.time-picker { display: flex; align-items: center; gap: 5px; }
+.time-picker input { text-align: center; }
+.editor-footer { display: flex; gap: 10px; margin-top: 20px; }
+.save-btn { flex: 2; background: var(--rt-primary); color: white; border: none; padding: 15px; border-radius: 15px; font-weight: 700; cursor: pointer; }
+.delete-btn { flex: 1; background: #fff; color: #ff4d4f; border: 1px solid #ff4d4f; padding: 15px; border-radius: 15px; font-weight: 700; cursor: pointer; }
 </style>
-<div class="option-row">
-  <label class="checkbox-label">
-    <input type="checkbox" v-model="event.isAtAccommodation" />
-    📍 此行程位於當日住宿點
-  </label>
-</div>
-
-<script setup lang="ts">
-// ...
-watch(() => event.isAtAccommodation, (newVal) => {
-  if (newVal) {
-    const hotel = tripStore.lodging[event.dateIndex]
-    event.location = hotel.name
-  }
-})
-</script>
