@@ -1,10 +1,14 @@
 import { createApp } from 'vue'
-import { createPinia } from 'pinia' // 引入大腦工廠
-import './style.css'
+import { createPinia } from 'pinia'
+// 1. 引入插件
+import piniaPluginPersistedstate from 'pinia-plugin-persistedstate'
 import App from './App.vue'
 
 const app = createApp(App)
-const pinia = createPinia() // 創建大腦實例
+const pinia = createPinia()
 
-app.use(pinia) // 告訴 App：你要使用這個大腦
+// 2. 讓 pinia 使用插件
+pinia.use(piniaPluginPersistedstate)
+
+app.use(pinia)
 app.mount('#app')
