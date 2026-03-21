@@ -132,3 +132,6 @@ const openMap = (location: string): void => {
 .full-img { max-width: 95%; max-height: 85%; border-radius: 12px; }
 .close-tip { color: white; margin-top: 20px; opacity: 0.7; }
 </style>
+<div class="event-location">
+  {{ event.isAtAccommodation ? tripStore.lodging[event.dateIndex].name : event.location }}
+</div>

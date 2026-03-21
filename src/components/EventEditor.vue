@@ -143,3 +143,19 @@ const handleFileUpload = (e: any) => {
 .btn-cancel { flex: 1; padding: 16px; border-radius: 16px; border: none; background: var(--rt-bg); color: var(--rt-primary); font-weight: 700; cursor: pointer; }
 .btn-delete { width: 100%; padding: 12px; border: 1px solid #D65D5D; color: #D65D5D; background: transparent; border-radius: 14px; cursor: pointer; margin-bottom: 5px; }
 </style>
+<div class="option-row">
+  <label class="checkbox-label">
+    <input type="checkbox" v-model="event.isAtAccommodation" />
+    📍 此行程位於當日住宿點
+  </label>
+</div>
+
+<script setup lang="ts">
+// ...
+watch(() => event.isAtAccommodation, (newVal) => {
+  if (newVal) {
+    const hotel = tripStore.lodging[event.dateIndex]
+    event.location = hotel.name
+  }
+})
+</script>

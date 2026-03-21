@@ -1,19 +1,30 @@
+// src/types.ts
+
 export interface TripEvent {
-  id: string;        // 💡 確保 id 不是選填的
+  id: string;
   title: string;
   location: string;
   hour: number;
   minute: number;
-  endHour: number;   // 💡 確保有這行
-  endMinute: number; // 💡 確保有這行
+  endHour: number;
+  endMinute: number;
   budget: number;
   category: string;
   dateIndex: number;
-  note: string;      // 💡 確保有這行
-  images: string[];  // 💡 確保有這行
+  note: string;
+  images: string[];
+  isAtAccommodation?: boolean; // 💡 確保這行也在
 }
 
 export interface TripDay {
   date: string;
   weekday: string;
+}
+
+// 💡 補上這一段，消滅 ListView 的第一個紅點
+export interface ListItem {
+  id: string;
+  title: string;
+  category: string;
+  completed: boolean;
 }
