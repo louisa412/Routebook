@@ -1,137 +1,120 @@
 <template>
-  <div class="timeline-page">
+  <div class="timeline-view">
     <div class="day-tabs">
-      <button v-for="(day, i) in tripStore.days" :key="i" 
-              @click="tripStore.currentDayIndex = i" 
-              :class="{ active: tripStore.currentDayIndex === i }">
-        <span class="day-weekday">{{ day.weekday }}</span>
-        <span class="day-date">{{ formatDate(day.date) }}</span>
+      <button 
+        v-for="(day, index) in tripStore.days" 
+        :key="index"
+        :class="{ active: tripStore.currentDayIndex === index }"
+        @click="tripStore.currentDayIndex = index"
+      >
+        <span class="day-num">Day {{ index + 1 }}</span>
+        <span class="day-date">{{ day.date.split('-')[2] }}</span>
       </button>
     </div>
 
     <div class="timeline-container">
-      <div class="timeline-line"></div>
+      <div v-if="filteredEvents.length === 0" class="empty-state">
+        <p>今天還沒有行程，按右下角新增一個吧！</p>
+      </div>
       
-      <div v-for="hour in 24" :key="hour" class="hour-row">
-        <div class="time-label">{{ (hour - 1).toString().padStart(2, '0') }}:00</div>
+      <div 
+        v-for="event in filteredEvents" 
+        :key="event.id" 
+        class="timeline-item"
+        @click="$emit('edit', event)"
+      >
+        <div class="time-box">
+          <span class="start-time">{{ formatTime(event.hour, event.minute) }}</span>
+          <span class="end-time">{{ formatTime(event.endHour, event.endMinute) }}</span>
+        </div>
         
-        <div class="event-box">
-          <div v-for="(event, index) in filteredEvents(hour - 1)" 
-               :key="event.id || index"
-               @click="$emit('edit', event)" 
-               class="event-card">
-            <div class="timeline-dot"></div>
-            
-            <div class="card-header">
-              <span class="cat-tag">{{ event.category }}</span>
-              <span class="time-text-inline">
-                {{ event.hour }}:{{ event.minute.toString().padStart(2,'0') }}
-              </span>
-              <span v-if="event.budget > 0" class="price-tag">¥ {{ event.budget.toLocaleString() }}</span>
+        <div class="event-card" :class="getCategoryClass(event.category)">
+          <div class="event-info">
+            <h4 class="event-title">{{ event.title }}</h4>
+            <div class="event-location">
+              📍 {{ event.isAtAccommodation ? (tripStore.lodging[event.dateIndex]?.name || '飯店') : event.location }}
             </div>
-
-            <h3 class="event-title">{{ event.title }}</h3>
-            
-            <p v-if="event.note" class="event-note">{{ event.note }}</p>
-
-            <div v-if="event.images?.length" class="event-images">
-              <img v-for="(img, idx) in event.images" :key="idx" 
-                   :src="img" @click.stop="previewImg = img" class="thumb" />
-            </div>
-
-            <div class="event-footer">
-              <span class="loc-text" @click.stop="openMap(event.location)">
-                📍 {{ event.location }}
-              </span>
-            </div>
+          </div>
+          <div v-if="event.budget > 0" class="event-budget">
+            ¥{{ event.budget.toLocaleString() }}
           </div>
         </div>
       </div>
     </div>
 
-    <button class="fab-add" @click="$emit('addNew')">+</button>
-
-    <div v-if="previewImg" class="img-modal" @click="previewImg = ''">
-      <img :src="previewImg" class="full-img" />
-      <p class="close-tip">點擊任何處關閉</p>
-    </div>
+    <button class="fab-btn" @click="$emit('addNew')">+</button>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed } from 'vue'
 import { useTripStore } from '../stores/tripStore'
-import type { TripEvent } from '../types'
 
 const tripStore = useTripStore()
-const previewImg = ref('')
 
-// 定義事件發送
-defineEmits<{
-  (e: 'edit', event: TripEvent): void
-  (e: 'addNew'): void
-}>()
+defineEmits(['edit', 'addNew'])
 
-// 邏輯：過濾該小時行程
-const filteredEvents = (hour: number): TripEvent[] => {
-  return tripStore.events.filter(e => e.dateIndex === tripStore.currentDayIndex && e.hour === hour)
+const filteredEvents = computed(() => {
+  return tripStore.events
+    .filter(e => e.dateIndex === tripStore.currentDayIndex)
+    .sort((a, b) => (a.hour * 60 + a.minute) - (b.hour * 60 + b.minute))
+})
+
+const formatTime = (h: number, m: number) => {
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
 }
 
-// 邏輯：日期格式化
-const formatDate = (dateString: string): string => {
-  if (!dateString) return ''
-  return dateString.substring(5).replace('-', '/')
-}
-
-// 💡 修正 2：徹底修復 Google Map 連結與語法黃點
-const openMap = (location: string): void => {
-  if (!location) return
-  const encodedLocation = encodeURIComponent(location)
-  // 修正變數插值語法，確保使用 ${}
-  const url = `https://www.google.com/maps/search/?api=1&query=${encodedLocation}`
-  window.open(url, '_blank')
+const getCategoryClass = (cat: string) => {
+  const map: Record<string, string> = {
+    '美食': 'cat-food',
+    '景點': 'cat-spot',
+    '交通': 'cat-trans',
+    '購物': 'cat-shop',
+    '飯店': 'cat-hotel'
+  }
+  return map[cat] || ''
 }
 </script>
 
 <style scoped>
-/* 樣式保持 iOS 質感 */
-.timeline-page { --rt-primary: #6D5FB1; --rt-secondary: #DEDAF4; --rt-muted: #757199; --rt-text: #231F40; position: relative; }
-.day-tabs { display: flex; gap: 10px; padding: 10px 20px; overflow-x: auto; scrollbar-width: none; }
+.timeline-view { padding: 15px; }
+.day-tabs { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 15px; margin-bottom: 10px; scrollbar-width: none; }
 .day-tabs::-webkit-scrollbar { display: none; }
-.day-tabs button { padding: 10px; min-width: 65px; border-radius: 16px; border: 1px solid rgba(109, 95, 177, 0.1); background: white; color: var(--rt-muted); cursor: pointer; }
-.day-tabs button.active { background: var(--rt-primary); color: white; }
-.day-weekday { display: block; font-size: 10px; font-weight: 800; }
-.day-date { display: block; font-size: 14px; font-weight: 800; }
+.day-tabs button {
+  flex-shrink: 0; width: 60px; height: 65px; border-radius: 18px; border: none;
+  background: white; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.03); cursor: pointer; transition: 0.3s;
+}
+.day-tabs button.active { background: var(--rt-primary); color: white; transform: translateY(-3px); box-shadow: 0 8px 15px rgba(109,95,177,0.3); }
+.day-num { font-size: 10px; font-weight: 700; opacity: 0.8; }
+.day-date { font-size: 18px; font-weight: 800; }
 
-.timeline-container { position: relative; padding: 20px; }
-.timeline-line { position: absolute; left: 62px; top: 0; bottom: 0; width: 2px; background: var(--rt-secondary); opacity: 0.4; }
-.hour-row { display: flex; min-height: 80px; }
-.time-label { width: 50px; font-size: 12px; color: var(--rt-primary); font-weight: 800; padding-top: 15px; text-align: right; margin-right: 12px; }
-.event-box { flex: 1; padding-left: 25px; }
+.timeline-container { position: relative; padding-left: 20px; }
+.timeline-item { display: flex; gap: 15px; margin-bottom: 20px; cursor: pointer; }
+.time-box { display: flex; flex-direction: column; align-items: flex-end; width: 45px; }
+.start-time { font-weight: 800; color: var(--rt-text); font-size: 14px; }
+.end-time { font-size: 11px; color: var(--rt-muted); }
 
-.event-card { background: white; border-radius: 20px; padding: 16px; margin-bottom: 15px; box-shadow: 0 4px 15px rgba(109, 95, 177, 0.05); position: relative; cursor: pointer; }
-.timeline-dot { position: absolute; left: -32px; top: 22px; width: 12px; height: 12px; border-radius: 50%; background: white; border: 3px solid var(--rt-primary); z-index: 2; }
+.event-card {
+  flex: 1; background: white; padding: 15px; border-radius: 20px;
+  display: flex; justify-content: space-between; align-items: center;
+  box-shadow: 0 5px 15px rgba(0,0,0,0.02); border-left: 5px solid #eee;
+}
+.event-title { margin: 0 0 4px 0; font-size: 16px; color: var(--rt-text); }
+.event-location { font-size: 12px; color: var(--rt-muted); }
+.event-budget { font-weight: 800; color: var(--rt-primary); font-size: 14px; }
 
-.card-header { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
-.cat-tag { background: var(--rt-secondary); color: var(--rt-primary); padding: 4px 10px; border-radius: 8px; font-size: 11px; font-weight: 800; }
-.time-text-inline { font-size: 12px; font-weight: 800; color: var(--rt-primary); background: #F0EDFF; padding: 4px 8px; border-radius: 8px; }
-.price-tag { margin-left: auto; color: var(--rt-primary); font-weight: 800; font-size: 14px; }
+/* 分類顏色 */
+.cat-food { border-left-color: #FF9F43; }
+.cat-spot { border-left-color: #48DBFB; }
+.cat-trans { border-left-color: #54a0ff; }
+.cat-shop { border-left-color: #ff9ff3; }
+.cat-hotel { border-left-color: #1dd1a1; }
 
-.event-title { font-size: 17px; font-weight: 800; margin: 0 0 8px 0; color: var(--rt-text); }
-.event-note { font-size: 13px; color: var(--rt-muted); background: #F8F7FF; padding: 10px; border-radius: 12px; margin-bottom: 10px; line-height: 1.4; border-left: 3px solid var(--rt-secondary); }
-
-.event-images { display: flex; gap: 8px; overflow-x: auto; margin-bottom: 12px; }
-.thumb { width: 70px; height: 70px; border-radius: 12px; object-fit: cover; flex-shrink: 0; }
-
-.event-footer { border-top: 1px solid #F0F0F0; padding-top: 10px; }
-.loc-text { font-size: 13px; color: var(--rt-muted); font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
-
-.fab-add { position: fixed; bottom: 120px; right: 25px; width: 60px; height: 60px; border-radius: 30px; background: var(--rt-primary); color: white; border: none; font-size: 32px; box-shadow: 0 10px 25px rgba(109, 95, 177, 0.4); cursor: pointer; z-index: 99; }
-
-.img-modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 2000; display: flex; flex-direction: column; justify-content: center; align-items: center; }
-.full-img { max-width: 95%; max-height: 85%; border-radius: 12px; }
-.close-tip { color: white; margin-top: 20px; opacity: 0.7; }
+.empty-state { text-align: center; padding: 40px; color: var(--rt-muted); }
+.fab-btn {
+  position: fixed; bottom: 100px; right: 20px; width: 56px; height: 56px;
+  border-radius: 28px; background: var(--rt-primary); color: white; border: none;
+  font-size: 30px; box-shadow: 0 10px 20px rgba(109,95,177,0.4); cursor: pointer; z-index: 100;
+}
 </style>
-<div class="event-location">
-  {{ event.isAtAccommodation ? tripStore.lodging[event.dateIndex].name : event.location }}
-</div>
