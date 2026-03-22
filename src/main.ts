@@ -3,6 +3,7 @@ import { createPinia } from 'pinia'
 // 1. 引入插件
 import piniaPluginPersistedstate from 'pinia-plugin-persistedstate'
 import App from './App.vue'
+import './assets/theme.css'
 
 const app = createApp(App)
 const pinia = createPinia()

@@ -1,0 +1,30 @@
+/* src/assets/theme.css */
+:root {
+  /* 核心配色 */
+  --rt-bg: #EFEEF7;          
+  --rt-primary: #6D5FB1;     
+  --rt-secondary: #DEDAF4;   
+  --rt-text: #231F40;        
+  --rt-muted: #757199;       
+  
+  /* 圓角與質感 */
+  --rt-radius-lg: 24px;      
+  --rt-radius-md: 18px;
+
+  /* 分類色 */
+  --rt-food: #FFB067;
+  --rt-spot: #7FA9FB;
+  --rt-trans: #8292D1;
+  --rt-shop: #E993D1;
+  --rt-hotel: #6BCB77;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background-color: var(--rt-bg);
+  color: var(--rt-text);
+  -webkit-font-smoothing: antialiased;
+  /* 確保使用 iOS 系統字體 */
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
