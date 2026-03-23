@@ -1,6 +1,4 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
 
 :root {
   /* 定義新的 J 人專屬色系變數，以防萬一某些地方還在用變數 */
