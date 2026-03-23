@@ -1,7 +1,12 @@
 // src/data/fukuokaData.ts
 import type { TripEvent } from '../types';
 
-export const FUKUOKA_EVENTS: TripEvent[] = [
+// 1. 定義一個「初始資料專用」型別，排除掉會由 Store 自動補齊的欄位
+type InitialTripEvent = Omit<TripEvent, 'id' | 'images' | 'isAtAccommodation'>;
+
+// 2. 💡 關鍵點：在這裡明確指定型別為 InitialTripEvent[] 而不是 TripEvent[]
+
+export const FUKUOKA_EVENTS: InitialTripEvent[] = [
   // === Day 1 (4/8 三) ===
   { title: '抵達桃機', location: '桃園國際機場 (TPE)', hour: 14, minute: 30, endHour: 15, endMinute: 30, budget: 0, category: '交通', dateIndex: 0 },
   { title: '航班起飛', location: '桃園國際機場 (TPE)', hour: 16, minute: 40, endHour: 20, endMinute: 0, budget: 0, category: '交通', dateIndex: 0 },
@@ -89,3 +94,13 @@ export const FUKUOKA_EVENTS: TripEvent[] = [
   { title: '各自出發搭車', location: '高鐵/客運', hour: 13, minute: 30, endHour: 14, endMinute: 30, budget: 1000, category: '交通', dateIndex: 5 },
   { title: '溫暖的家', location: '家', hour: 14, minute: 30, endHour: 15, endMinute: 0, budget: 0, category: '其他', dateIndex: 5 },
 ]
+// src/data/fukuokaData.ts (最下方新增)
+
+export const FUKUOKA_LODGING: Record<number, { name: string, address: string }> = {
+  0: { name: '福岡皇家花園酒店', address: '福岡市博多區博多站前2-14-15' },
+  1: { name: '福岡皇家花園酒店', address: '福岡市博多區博多站前2-14-15' },
+  2: { name: '福岡皇家花園酒店', address: '福岡市博多區博多站前2-14-15' },
+  3: { name: '福岡皇家花園酒店', address: '福岡市博多區博多站前2-14-15' },
+  4: { name: '福岡皇家花園酒店', address: '福岡市博多區博多站前2-14-15' },
+  5: { name: '溫暖的家', address: '' }
+};
