@@ -1,37 +1,73 @@
 <template>
-  <div class="list-view">
-    <div class="list-header">
-      <h2 class="list-title">{{ title }}</h2>
-      <div class="add-controls">
+  <div class="list-view px-5 py-2">
+    <div class="list-header mb-6">
+      <h2 class="text-[#231F40] text-2xl font-extrabold mb-4">{{ title }}</h2>
+      
+      <div class="add-controls bg-white p-2 rounded-[20px] shadow-sm flex items-center gap-2 border border-[#DEDAF4]/50">
         <input 
           v-model="newItemTitle" 
           :placeholder="placeholder" 
+          class="flex-1 bg-transparent border-none p-3 outline-none text-[#231F40] text-sm"
           @keyup.enter="addItem" 
         />
-        <select v-model="selectedCategory">
+        <select v-model="selectedCategory" class="bg-[#EFEEF7] text-[#6D5FB1] text-xs font-bold py-2 px-3 rounded-[12px] outline-none border-none">
           <option v-for="cat in categories" :key="cat" :value="cat">{{ cat }}</option>
         </select>
-        <button @click="addItem" class="add-btn">+</button>
+        <button @click="addItem" class="bg-[#6D5FB1] text-white w-10 h-10 rounded-[15px] font-bold text-xl flex items-center justify-center active:scale-90 transition-transform">
+          +
+        </button>
       </div>
     </div>
 
-    <div class="items-container">
-      <div v-for="item in items" :key="item.id" class="list-item" :class="{ done: item.completed }">
-        <input type="checkbox" v-model="item.completed" />
-        <div class="item-info">
-          <div class="item-title">{{ item.title }}</div>
-          <div class="item-tags">
-            <span class="tag">{{ item.category }}</span>
+    <div class="groups-container space-y-8">
+      <div v-for="(groupItems, categoryName) in groupedItems" :key="categoryName" class="category-group">
+        <div class="flex items-center mb-3">
+          <div class="w-1.5 h-4 bg-[#6D5FB1] rounded-full mr-2"></div>
+          <h3 class="text-[#757199] text-xs font-bold uppercase tracking-widest">{{ categoryName }}</h3>
+          <span class="ml-2 text-[10px] bg-[#DEDAF4] text-[#6D5FB1] px-2 py-0.5 rounded-full font-bold">
+            {{ groupItems.length }}
+          </span>
+        </div>
+
+        <div class="grid gap-3">
+          <div 
+            v-for="item in groupItems" 
+            :key="item.id" 
+            class="list-item bg-white p-4 rounded-[24px] flex items-center gap-4 shadow-sm border border-transparent transition-all"
+            :class="{ 'opacity-50 grayscale-[0.5]': item.completed }"
+          >
+            <div 
+              @click="toggleItem(item)"
+              class="w-6 h-6 rounded-full border-2 flex-shrink-0 flex items-center justify-center cursor-pointer transition-colors"
+              :class="item.completed ? 'bg-[#6D5FB1] border-[#6D5FB1]' : 'border-[#DEDAF4]'"
+            >
+              <svg v-if="item.completed" width="12" height="12" viewBox="0 0 12 12" fill="none">
+                <path d="M2 6L5 9L10 3" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+
+            <div class="flex-1" @click="toggleItem(item)">
+              <div class="text-[#231F40] font-bold text-[15px]" :class="{ 'line-through': item.completed }">
+                {{ item.title }}
+              </div>
+            </div>
+
+            <button @click="$emit('delete', item.id)" class="text-[#757199]/40 hover:text-red-400 text-xl px-2">
+              ×
+            </button>
           </div>
         </div>
-        <button @click="$emit('delete', item.id)" class="del-item-btn">×</button>
       </div>
+    </div>
+
+    <div v-if="items.length === 0" class="py-20 text-center text-[#757199]/50 text-sm">
+      目前沒有項目，開始規劃吧！
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import type { ListItem } from '../types'
 
 const props = defineProps<{
@@ -41,40 +77,50 @@ const props = defineProps<{
   categories: string[]
 }>()
 
-// 💡 定義模板需要的變數
+const emit = defineEmits(['add', 'delete', 'update'])
+
 const newItemTitle = ref('')
-const selectedCategory = ref(props.categories[0] || '')
+const selectedCategory = ref(props.categories[0] || '未分類')
 
-// 💡 定義發送給 App.vue 的事件
-const emit = defineEmits(['add', 'delete'])
+// 💡 核心邏輯：將扁平陣列轉換成「分類物件」
+const groupedItems = computed(() => {
+  return props.items.reduce((acc, item) => {
+    const cat = item.category || '其他'
+    if (!acc[cat]) acc[cat] = []
+    acc[cat].push(item)
+    return acc
+  }, {} as Record<string, ListItem[]>)
+})
 
-// 💡 補上 addItem 函式，消滅紅點
 const addItem = () => {
   if (!newItemTitle.value.trim()) return
   emit('add', {
     title: newItemTitle.value,
     category: selectedCategory.value
   })
-  newItemTitle.value = '' // 清空輸入框
+  newItemTitle.value = ''
+}
+
+const toggleItem = (item: ListItem) => {
+  item.completed = !item.completed
+  emit('update', item)
 }
 </script>
 
 <style scoped>
-.list-view { padding: 20px; animation: fadeIn 0.4s ease; }
-.list-title { font-weight: 800; color: var(--rt-primary); margin-bottom: 20px; font-size: 20px; }
-.add-controls { display: flex; gap: 8px; margin-bottom: 25px; background: white; padding: 8px; border-radius: 16px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
-.add-controls input { flex: 1; border: none; padding: 10px; outline: none; font-size: 14px; }
-.add-controls select { border: none; background: var(--rt-bg); padding: 5px 10px; border-radius: 10px; font-size: 12px; color: var(--rt-primary); font-weight: 700; outline: none; }
-.add-btn { background: var(--rt-primary); color: white; border: none; width: 38px; height: 38px; border-radius: 12px; font-size: 20px; font-weight: 800; cursor: pointer; }
+.list-view {
+  font-family: 'Plus Jakarta Sans', -apple-system, sans-serif;
+  animation: slideUp 0.5s ease-out;
+}
 
-.items-container { display: flex; flex-direction: column; gap: 12px; }
-.list-item { background: white; padding: 16px; border-radius: 20px; display: flex; align-items: center; gap: 12px; transition: 0.3s; border: 1px solid transparent; }
-.list-item.done { opacity: 0.6; background: var(--rt-bg); }
-.list-item.done .item-title { text-decoration: line-through; }
-.item-info { flex: 1; }
-.item-title { font-weight: 700; color: var(--rt-text); margin-bottom: 4px; }
-.tag { font-size: 10px; background: var(--rt-secondary); color: var(--rt-primary); padding: 2px 8px; border-radius: 6px; font-weight: 800; }
-.del-item-btn { background: transparent; border: none; color: #ff4d4f; font-size: 20px; cursor: pointer; padding: 5px; }
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
 
-@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+input, select {
+  -webkit-appearance: none; /* 針對 Safari/Chrome */
+  appearance: none;         /* 標準屬性：消除這條警告 */
+  background-image: none;
+}
 </style>

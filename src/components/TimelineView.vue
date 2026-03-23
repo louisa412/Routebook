@@ -1,68 +1,76 @@
 <template>
-  <div class="timeline-container">
-    <header class="timeline-header">
-      <div class="trip-info" @click="$emit('switch-trip')">
-        <h1 class="trip-title">{{ tripStore.tripName || '福岡之旅' }}</h1>
-        <span class="trip-chevron">▾</span>
+  <div class="timeline-container bg-[#EFEEF7]">
+    <header class="timeline-header p-6 pb-2">
+      <div class="trip-info flex items-center gap-2 cursor-pointer" @click="$emit('switch-trip')">
+        <h1 class="text-[#231F40] text-2xl font-extrabold">{{ tripStore.tripName || '福岡之旅' }}</h1>
+        <span class="text-[#6D5FB1] text-lg">▾</span>
       </div>
-      <div class="trip-stats">
+      <div class="trip-stats text-[#757199] text-xs font-bold mt-1 uppercase tracking-wide">
         {{ tripStore.days.length }} Days • 預算 ¥{{ (tripStore.totalBudget || 0).toLocaleString() }}
       </div>
     </header>
 
-    <nav class="day-tabs">
+    <nav class="day-tabs flex gap-3 overflow-x-auto p-4 pb-6 no-scrollbar">
       <button 
-        v-for="(_, index) in tripStore.days" :key="index"
-        :class="{ active: tripStore.currentDayIndex === index }"
+        v-for="(day, index) in tripStore.days" :key="index"
+        class="flex-shrink-0 w-[90px] h-[85px] rounded-[24px] border-none flex flex-col items-center justify-center transition-all duration-300 shadow-sm"
+        :class="tripStore.currentDayIndex === index 
+          ? 'bg-[#6D5FB1] text-white shadow-lg -translate-y-1' 
+          : 'bg-white text-[#757199] hover:bg-[#DEDAF4]/30'"
         @click="tripStore.currentDayIndex = index"
       >
-        <span class="day-label">DAY</span>
-        <span class="day-number">{{ index + 1 }}</span>
+        <span class="text-[10px] font-bold opacity-80 mb-1 uppercase">{{ day.displayLabel }}</span>
+        <span class="text-lg font-black" :class="tripStore.currentDayIndex === index ? 'text-white' : 'text-[#231F40]'">
+          {{ day.dayTitle }}
+        </span>
       </button>
     </nav>
 
-    <main class="full-timeline">
-      <div v-for="hour in 24" :key="hour - 1" class="hour-row">
-        <div class="time-column">
-          <span class="time-text">{{ String(hour - 1).padStart(2, '0') }}:00</span>
-          <div class="time-node"></div>
+    <main class="full-timeline px-4 pb-32">
+      <div v-for="hour in 24" :key="hour - 1" class="hour-row flex min-h-[110px]">
+        <div class="time-column w-14 flex flex-col items-end pr-4 relative">
+          <span class="text-[11px] font-black text-[#757199] mt-1">{{ String(hour - 1).padStart(2, '0') }}:00</span>
+          <div class="time-node w-2.5 h-2.5 rounded-full border-2 border-[#6D5FB1] bg-white absolute -right-[6px] top-2 z-10"></div>
+          <div class="time-line absolute right-[-1px] top-4 bottom-[-4px] border-r-2 border-dashed border-[#DEDAF4]"></div>
         </div>
 
-        <div class="event-column">
+        <div class="event-column flex-1 pl-6 pb-6">
           <template v-if="getEventsByHour(hour - 1).length > 0">
             <div 
               v-for="event in getEventsByHour(hour - 1)" :key="event.id"
-              class="event-card" 
-              :class="getCategoryClass(event.category)"
+              class="event-card bg-white p-4 rounded-[28px] shadow-sm border-l-[6px] transition-transform active:scale-[0.98]" 
+              :style="{ borderLeftColor: getCategoryColor(event.category) }"
               @click="$emit('edit', event)"
             >
-              <div class="event-layout">
-                <div class="event-main">
-                  <h3 class="event-title">{{ event.title }}</h3>
-                  <p class="event-location">
-                    <span class="icon">📍</span> 
+              <div class="flex justify-between items-start">
+                <div class="flex-1">
+                  <h3 class="text-[#231F40] text-[15px] font-black mb-1">{{ event.title }}</h3>
+                  <p class="text-[#757199] text-[11px] font-medium flex items-center gap-1">
+                    <span>📍</span> 
                     {{ event.isAtAccommodation ? (tripStore.lodging[tripStore.currentDayIndex]?.name || '住宿地點') : event.location }}
                   </p>
                   
-                  <div v-if="event.images && event.images.length > 0" class="event-attachments">
+                  <div v-if="event.images && event.images.length > 0" class="flex gap-2 mt-3">
                     <div 
                       v-for="(img, imgIdx) in event.images.slice(0, 3)" :key="imgIdx"
-                      class="img-thumb"
+                      class="w-11 h-11 rounded-[12px] bg-cover bg-center border border-[#EFEEF7]"
                       :style="{ backgroundImage: `url(${img})` }"
                     ></div>
-                    <span v-if="event.images.length > 3" class="img-more">+{{ event.images.length - 3 }}</span>
+                    <div v-if="event.images.length > 3" class="h-11 px-2 rounded-[12px] bg-[#EFEEF7] flex items-center justify-center text-[10px] font-bold text-[#6D5FB1]">
+                      +{{ event.images.length - 3 }}
+                    </div>
                   </div>
                 </div>
 
-                <div v-if="event.budget > 0" class="event-badge">
+                <div v-if="event.budget > 0" class="bg-[#EFEEF7] text-[#6D5FB1] px-2 py-1 rounded-[10px] text-[11px] font-black ml-2">
                   ¥{{ event.budget.toLocaleString() }}
                 </div>
               </div>
             </div>
           </template>
 
-          <div v-else class="empty-slot" @click="addNewAtHour(hour - 1)">
-            <span class="plus-icon">+</span>
+          <div v-else class="h-12 border-2 border-dashed border-[#DEDAF4] rounded-[20px] flex items-center justify-center cursor-pointer hover:bg-white/50 transition-colors" @click="addNewAtHour(hour - 1)">
+            <span class="text-[#DEDAF4] text-xl font-light">+</span>
           </div>
         </div>
       </div>
@@ -76,105 +84,36 @@ import { useTripStore } from '../stores/tripStore'
 const tripStore = useTripStore()
 const emit = defineEmits(['edit', 'addNew', 'switch-trip'])
 
-// 邏輯：篩選該小時行程
+// 根據小時篩選行程
 const getEventsByHour = (h: number) => {
   return tripStore.events.filter(e => 
     e.dateIndex === tripStore.currentDayIndex && e.hour === h
   )
 }
 
-// 邏輯：新增行程
 const addNewAtHour = (h: number) => {
   emit('addNew', h) 
 }
 
-// 樣式映射
-const getCategoryClass = (cat: string) => {
-  const map: Record<string, string> = {
-    '美食': 'cat-food', '景點': 'cat-spot', '交通': 'cat-trans', '購物': 'cat-shop', '飯店': 'cat-hotel'
+// 根據類別回傳顏色 (符合 J 人色系)
+const getCategoryColor = (cat: string) => {
+  const colors: Record<string, string> = {
+    '美食': '#FFB067', // 暖橘
+    '景點': '#7FA9FB', // 天藍
+    '交通': '#8292D1', // 灰藍
+    '購物': '#E993D1', // 粉紫
+    '飯店': '#6BCB77'  // 嫩綠
   }
-  return map[cat] || ''
+  return colors[cat] || '#DEDAF4'
 }
 </script>
 
 <style scoped>
-.timeline-container {
-  min-height: 100vh;
-  background: var(--rt-bg);
-  padding: 20px 16px 120px 16px;
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
 }
-
-/* Header */
-.timeline-header { margin-bottom: 24px; padding-left: 8px; }
-.trip-info { display: flex; align-items: center; gap: 8px; cursor: pointer; }
-.trip-title { font-size: 24px; font-weight: 800; color: var(--rt-text); margin: 0; }
-.trip-chevron { color: var(--rt-primary); font-size: 18px; }
-.trip-stats { font-size: 13px; color: var(--rt-muted); margin-top: 4px; font-weight: 600; }
-
-/* Day Tabs */
-.day-tabs { display: flex; gap: 12px; overflow-x: auto; padding-bottom: 24px; scrollbar-width: none; }
-.day-tabs::-webkit-scrollbar { display: none; }
-.day-tabs button {
-  flex-shrink: 0; width: 64px; height: 72px; border-radius: 22px; border: none;
-  background: white; display: flex; flex-direction: column; align-items: center; justify-content: center;
-  box-shadow: 0 4px 15px rgba(109, 95, 177, 0.05); transition: 0.3s;
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
-.day-tabs button.active { background: var(--rt-primary); transform: translateY(-4px); }
-.day-tabs button.active span { color: white; }
-.day-label { font-size: 10px; font-weight: 700; color: var(--rt-muted); }
-.day-number { font-size: 18px; font-weight: 800; color: var(--rt-text); }
-
-/* Timeline Grid */
-.hour-row { display: flex; min-height: 100px; }
-.time-column { width: 50px; display: flex; flex-direction: column; align-items: flex-end; padding-right: 15px; position: relative; }
-.time-column::after {
-  content: ''; position: absolute; right: -1px; top: 15px; bottom: -15px;
-  border-right: 2px dashed var(--rt-secondary);
-}
-.time-text { font-size: 12px; font-weight: 700; color: var(--rt-muted); margin-top: 4px; }
-.time-node {
-  width: 10px; height: 10px; background: white; border: 2px solid var(--rt-primary);
-  border-radius: 50%; position: absolute; right: -5px; top: 6px; z-index: 2;
-}
-
-/* Event Card */
-.event-column { flex: 1; padding-left: 20px; padding-bottom: 20px; }
-.event-card {
-  background: white; padding: 16px; border-radius: 24px;
-  border: 1px solid rgba(255, 255, 255, 0.8);
-  box-shadow: 0 10px 25px rgba(109, 95, 177, 0.06);
-  transition: transform 0.2s;
-}
-.event-layout { display: flex; justify-content: space-between; align-items: flex-start; }
-.event-main { flex: 1; }
-.event-title { font-size: 16px; font-weight: 800; color: var(--rt-text); margin: 0 0 4px 0; }
-.event-location { font-size: 12px; color: var(--rt-muted); margin: 0; display: flex; align-items: center; gap: 4px; }
-
-/* 圖片附件樣式 */
-.event-attachments { display: flex; gap: 6px; margin-top: 10px; align-items: center; }
-.img-thumb {
-  width: 44px; height: 44px; border-radius: 10px;
-  background-size: cover; background-position: center;
-  border: 1px solid var(--rt-bg);
-}
-.img-more { font-size: 11px; font-weight: 700; color: var(--rt-muted); background: var(--rt-bg); padding: 4px 8px; border-radius: 8px; }
-
-.event-badge {
-  background: var(--rt-bg); padding: 4px 10px; border-radius: 12px;
-  font-size: 12px; font-weight: 800; color: var(--rt-primary); margin-left: 10px;
-}
-
-/* Empty Slot */
-.empty-slot {
-  height: 48px; border: 2px dashed rgba(109, 95, 177, 0.15); border-radius: 16px;
-  display: flex; align-items: center; justify-content: center; cursor: pointer;
-}
-.plus-icon { color: var(--rt-secondary); font-size: 24px; }
-
-/* Category Colors */
-.cat-food { border-left: 6px solid #FFB067; }
-.cat-spot { border-left: 6px solid #7FA9FB; }
-.cat-trans { border-left: 6px solid #8292D1; }
-.cat-shop { border-left: 6px solid #E993D1; }
-.cat-hotel { border-left: 6px solid #6BCB77; }
 </style>
