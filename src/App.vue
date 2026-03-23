@@ -3,151 +3,148 @@ import { ref, onMounted } from 'vue'
 import { useTripStore } from './stores/tripStore'
 import type { TripEvent } from './types'
 
+// 引入更新後的組件
 import TimelineView from './components/TimelineView.vue'
 import ListView from './components/ListView.vue'
+import EventEditModal from './components/EventEditModal.vue' // 💡 確保路徑與名稱正確
 import BudgetView from './components/BudgetView.vue'
-import EventEditor from './components/EventEditor.vue'
 import ProfileView from './components/ProfileView.vue'
-import InfoView from './components/InfoView.vue'
 
 const tripStore = useTripStore()
 const currentTab = ref('timeline')
 
 const tabs = [
-  {id:'timeline', name:'行程'}, 
-  {id:'todo', name:'待辦'}, 
-  {id:'shop', name:'購物'}, 
-  {id:'info', name:'基本'}, 
-  {id:'budget', name:'預算'},
-  {id:'profile', name:'個人'}
+  { id: 'timeline', name: '行程' },
+  { id: 'todo', name: '待辦' },
+  { id: 'shop', name: '購物' },
+  { id: 'budget', name: '預算' },
+  { id: 'profile', name: '個人' }
 ]
 
 onMounted(() => {
   tripStore.initAuth()
 })
 
+// 控制行程編輯彈窗
 const isEditing = ref(false)
-const editingIndex = ref(-1)
-// 💡 調整型別，減少 Editor 的衝突
-const tempEvent = ref<TripEvent | any>({})
+const selectedEvent = ref<TripEvent | null>(null)
 
-const prepareAdd = () => {
-  editingIndex.value = -1
-  // 💡 補齊所有欄位，包含最新的 isAtAccommodation
-  tempEvent.value = { 
+// 💡 準備新增行程
+const prepareAdd = (hour: number) => {
+  selectedEvent.value = { 
     id: Date.now().toString(), 
     title: '', 
     location: '', 
     category: '景點', 
-    hour: 9, 
+    hour: hour, 
     minute: 0, 
-    endHour: 10, 
-    endMinute: 0, 
     budget: 0, 
     dateIndex: tripStore.currentDayIndex, 
     images: [], 
     note: '',
-    isAtAccommodation: false // 💡 補上這個就不會紅了
-  }
+    isAtAccommodation: false 
+  } as TripEvent
   isEditing.value = true
 }
 
+// 💡 打開編輯行程
 const openEdit = (event: TripEvent) => {
-  editingIndex.value = tripStore.events.indexOf(event)
-  tempEvent.value = { ...event }
+  selectedEvent.value = event
   isEditing.value = true
-}
-
-const handleSave = (updatedEvent: TripEvent) => {
-  if (editingIndex.value === -1) {
-    tripStore.addEvent(updatedEvent)
-  } else {
-    tripStore.events[editingIndex.value] = updatedEvent
-    tripStore.saveToCloud()
-  }
-  isEditing.value = false
-}
-
-const handleDelete = () => {
-  if (editingIndex.value !== -1 && confirm('確定要刪除嗎？')) {
-    tripStore.events.splice(editingIndex.value, 1)
-    tripStore.saveToCloud()
-    isEditing.value = false
-  }
 }
 </script>
 
 <template>
-  <div class="app-container">
-    <header class="header">
-      <h1 class="title">{{ tripStore.tripName }}</h1>
-      <div class="budget-bar-area">
-        <div class="budget-info">
-          <span>剩餘 ¥{{ (tripStore.totalBudget - tripStore.totalSpent).toLocaleString() }}</span>
+  <div class="app-container bg-[#EFEEF7] min-h-screen">
+    <header class="header sticky top-0 z-40 bg-[#EFEEF7]/80 backdrop-blur-xl px-6 py-4 border-b border-[#6D5FB1]/10">
+      <div class="flex justify-between items-end mb-3">
+        <h1 class="text-[#6D5FB1] text-xl font-black tracking-tight">{{ tripStore.tripName }}</h1>
+        <div class="text-[11px] font-bold text-[#757199] uppercase tracking-wider">
+          剩餘 ¥{{ (tripStore.totalBudget - tripStore.totalSpent).toLocaleString() }}
         </div>
-        <div class="progress-bg">
-          <div class="progress-fill" :style="{ width: (tripStore.totalSpent/tripStore.totalBudget*100) + '%' }"></div>
-        </div>
+      </div>
+      <div class="h-1.5 w-full bg-white rounded-full overflow-hidden shadow-inner">
+        <div 
+          class="h-full bg-[#6D5FB1] transition-all duration-700 ease-out" 
+          :style="{ width: Math.min((tripStore.totalSpent / tripStore.totalBudget * 100), 100) + '%' }"
+        ></div>
       </div>
     </header>
 
-    <main class="main-content">
-      <TimelineView v-if="currentTab === 'timeline'" @edit="openEdit" @addNew="prepareAdd" />
+    <main class="pb-32">
+      <TimelineView 
+        v-if="currentTab === 'timeline'" 
+        @edit="openEdit" 
+        @addNew="prepareAdd" 
+      />
       
-<ListView v-if="currentTab === 'todo'" 
-  title="準備清單" 
-  placeholder="新增待辦項目..." 
-  :items="tripStore.todos" 
-  :categories="['證件', '票券', '衣物', '日常']"
-  @add="(data: any) => tripStore.addTodo(data.title, data.category)"
-  @delete="(id: string) => tripStore.deleteTodo(id)" 
-/>
+      <ListView 
+        v-if="currentTab === 'todo'" 
+        title="待辦清單" 
+        placeholder="需要準備什麼..." 
+        :items="tripStore.todos" 
+        :categories="['行前', '證件', '交通', '行李']"
+        @add="(data: any) => tripStore.addTodo(data.title, data.category)"
+        @update="() => tripStore.saveToCloud()"
+        @delete="(id: string) => { tripStore.todos = tripStore.todos.filter(t => t.id !== id); tripStore.saveToCloud(); }" 
+      />
 
-<ListView v-if="currentTab === 'shop'" 
-  title="採買清單" 
-  placeholder="想買什麼東西..." 
-  :items="tripStore.shoppingList" 
-  :categories="['藥妝', '伴手禮', '服飾', '零食']"
-  @add="(data: any) => tripStore.addShoppingItem(data.title, data.category)"
-  @delete="(id: string) => tripStore.deleteShoppingItem(id)" 
-/>
+      <ListView 
+        v-if="currentTab === 'shop'" 
+        title="採買清單" 
+        placeholder="想買什麼東西..." 
+        :items="tripStore.shoppingList" 
+        :categories="['藥妝', '伴手禮', '服飾', '零食', '電器']"
+        @add="(data: any) => tripStore.addShoppingItem(data.title, data.category)"
+        @update="() => tripStore.saveToCloud()"
+        @delete="(id: string) => { tripStore.shoppingList = tripStore.shoppingList.filter(s => s.id !== id); tripStore.saveToCloud(); }" 
+      />
 
-      <InfoView v-if="currentTab === 'info'" /> 
       <BudgetView v-if="currentTab === 'budget'" />
       <ProfileView v-if="currentTab === 'profile'" />
     </main>
 
-    <nav class="bottom-nav">
-      <div class="nav-container">
-        <button v-for="tab in tabs" :key="tab.id" @click="currentTab = tab.id" :class="{ active: currentTab === tab.id }">
-          {{ tab.name }}
+    <nav class="fixed bottom-8 left-0 right-0 px-6 z-40">
+      <div class="max-w-md mx-auto h-[72px] bg-white/90 backdrop-blur-2xl rounded-[28px] shadow-xl shadow-[#6D5FB1]/10 border border-white flex items-center justify-around px-2">
+        <button 
+          v-for="tab in tabs" 
+          :key="tab.id" 
+          @click="currentTab = tab.id"
+          class="flex flex-col items-center justify-center w-14 h-14 rounded-[20px] transition-all duration-300"
+          :class="currentTab === tab.id ? 'bg-[#6D5FB1] text-white shadow-lg' : 'text-[#757199]'"
+        >
+          <span class="text-[11px] font-black">{{ tab.name }}</span>
         </button>
       </div>
     </nav>
 
-    <EventEditor 
-      v-if="isEditing" 
-      :event="(tempEvent as TripEvent)" 
-      :isNew="editingIndex === -1" 
-      @close="isEditing = false" 
-      @save="handleSave" 
-      @delete="handleDelete" 
+    <EventEditModal 
+      :is-open="isEditing" 
+      :event="selectedEvent" 
+      @close="isEditing = false"
     />
   </div>
 </template>
 
 <style>
-/* CSS 保持不變，但建議縮小導覽列字體以容納 6 個按鈕 */
-:root { --rt-bg: #EFEEF7; --rt-primary: #6D5FB1; --rt-secondary: #DEDAF4; --rt-text: #231F40; --rt-muted: #757199; --rt-card-radius: 20px; }
-body { margin: 0; background: var(--rt-bg); font-family: 'Plus Jakarta Sans', sans-serif; }
-.app-container { min-height: 100vh; padding-bottom: 120px; }
-.header { position: sticky; top: 0; background: rgba(239, 238, 247, 0.85); backdrop-filter: blur(20px); padding: 20px; z-index: 90; border-bottom: 1px solid rgba(109,95,177,0.1); }
-.title { font-size: 20px; font-weight: 800; color: var(--rt-primary); margin: 0 0 10px 0; }
-.budget-info { display: flex; justify-content: space-between; font-size: 12px; color: var(--rt-muted); font-weight: 700; margin-bottom: 5px; }
-.progress-bg { height: 8px; background: white; border-radius: 10px; overflow: hidden; }
-.progress-fill { height: 100%; background: var(--rt-primary); transition: width 0.6s ease; }
-.bottom-nav { position: fixed; bottom: 20px; width: 100%; display: flex; justify-content: center; z-index: 100; padding: 0 10px; box-sizing: border-box; }
-.nav-container { width: 100%; max-width: 500px; height: 60px; background: rgba(255,255,255,0.95); backdrop-filter: blur(20px); border-radius: 20px; display: flex; box-shadow: 0 10px 30px rgba(0,0,0,0.1); border: 1px solid white; overflow: hidden; }
-.nav-container button { flex: 1; border: none; background: transparent; font-size: 10px; color: var(--rt-muted); font-weight: 700; cursor: pointer; transition: 0.2s; white-space: nowrap; }
-.nav-container button.active { color: var(--rt-primary); background: rgba(109,95,177,0.05); }
+/* 全域字體校準 */
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap');
+
+:root {
+  --rt-bg: #EFEEF7;
+  --rt-primary: #6D5FB1;
+  --rt-text: #231F40;
+}
+
+body {
+  margin: 0;
+  background-color: var(--rt-bg);
+  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* 隱藏捲軸 */
+::-webkit-scrollbar {
+  display: none;
+}
 </style>

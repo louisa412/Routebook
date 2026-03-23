@@ -2,6 +2,7 @@
 import { initializeApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
+import { getStorage } from 'firebase/storage' // 1. 引入 Storage 模組
 
 // 💡 這裡請貼上妳在 Firebase Console 「專案設定」裡看到的 config
 const firebaseConfig = {
@@ -15,8 +16,11 @@ const firebaseConfig = {
 };
 
 // 初始化 Firebase
-const app = initializeApp(firebaseConfig);
+const app = initializeApp(firebaseConfig)
 
-// 💡 匯出資料庫與驗證工具，讓其他檔案可以 import
-export const db = getFirestore(app);
-export const auth = getAuth(app);
+// 2. 定義並導出服務實例
+export const db = getFirestore(app)
+export const auth = getAuth(app)
+export const storage = getStorage(app) // 3. 正式導出 storage 供彈窗使用
+
+export default app
