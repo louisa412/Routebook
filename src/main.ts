@@ -1,6 +1,7 @@
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 // 1. 引入插件
+import './style.css' // 或者是你存放 Tailwind 指令的檔案路徑
 import piniaPluginPersistedstate from 'pinia-plugin-persistedstate'
 import App from './App.vue'
 import './assets/theme.css'
