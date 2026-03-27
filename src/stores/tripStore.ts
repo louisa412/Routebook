@@ -147,21 +147,21 @@ export const useTripStore = defineStore('trip', () => {
     saveToCloud()
   }
 
-  const addTodo = (title: string, category: string) => {
+  const addTodo = (item: { title: string, category: string }) => {
     todos.value.push({ 
       id: `todo-${Date.now()}`, 
-      title, 
-      category, 
+      title: item.title, 
+      category: item.category, 
       completed: false 
     })
     saveToCloud()
   }
 
-  const addShoppingItem = (title: string, category: string) => {
+  const addShoppingItem = (item: { title: string, category: string }) => {
     shoppingList.value.push({ 
       id: `shop-${Date.now()}`, 
-      title, 
-      category, 
+      title: item.title, 
+      category: item.category, 
       completed: false 
     })
     saveToCloud()
