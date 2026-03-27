@@ -1,68 +1,79 @@
 /**
  * Routebook 核心型別定義
- * 版本：2026-03-25 (區間時間版)
+ * 更新日期：2026-03-27
+ * 變更重點：補齊缺失的 TripDay 與 ListItem 定義，修正 Price 必填項
  */
 
-// 行程分類定義，確保 UI 顏色與圖示連動
+// 1. 行程分類
 export type EventCategory = 'transport' | 'food' | 'spot' | 'hotel' | 'shopping' | 'todo';
 
 /**
- * 基礎行程介面 (Base Interface)
- * 包含所有行程共有的屬性
+ * 2. 完整行程事件 (用於 Store 與 Firestore)
+ * 為了計算安全，price 與 day 設為必填
  */
-interface BaseEvent {
+export interface TripEvent {
   id: string;
   title: string;
-  startTime: string; // 格式: "HH:mm" (例如 "09:00")
-  endTime: string;   // 格式: "HH:mm" (例如 "10:30")
+  startTime: string; // 格式: "HH:mm"
+  endTime: string;   // 格式: "HH:mm"
   location: string;
   address?: string;
   category: EventCategory;
   note?: string;
-  price?: number;
-  day: number;
-  isHotel?: boolean; // 是否為住宿連動項目
+  price: number;     // 對齊新版資料結構
+  day: number;       // 對齊新版資料結構
+  isHotel?: boolean;
+  images: string[];
+  time?: string;     // [舊版相容]
 }
 
 /**
- * 完整行程事件 (用於 Store 與 Firestore)
- * 確保所有資料都已解耦並具備完整屬性
+ * 3. 初始行程輸入 (用於 fukuokaData.ts)
  */
-export interface TripEvent extends BaseEvent {
-  images: string[];    // 確保照片欄位永遠存在，預設為空陣列
-  time?: string;       // [舊版相容] 暫時保留，之後將棄用
-}
-
-/**
- * 初始行程輸入 (用於 fukuokaData.ts)
- * 允許部分欄位選填，由 Store 初始化時補齊
- */
-export interface InitialTripEvent extends Partial<BaseEvent> {
+export interface InitialTripEvent extends Partial<TripEvent> {
   title: string;
-  startTime: string;   // 初始資料必須提供開始時間
-  endTime: string;     // 初始資料必須提供結束時間
+  startTime: string;
+  endTime: string;
   category: EventCategory;
   day: number;
 }
 
 /**
- * 預算與消費紀錄 (用於 BudgetView)
+ * 4. 日期區塊定義 (解決 Store 報錯關鍵)
+ */
+export interface TripDay {
+  date: string;
+  weekday: string;
+  displayLabel: string;
+  dayTitle: string;
+}
+
+/**
+ * 5. 清單項目定義 (解決 ListView 報錯關鍵)
+ */
+export interface ListItem {
+  id: string;
+  title: string;
+  category: string;
+  completed: boolean;
+}
+
+/**
+ * 6. 住宿資訊定義
+ */
+export interface HotelInfo {
+  name: string;
+  address: string;
+}
+
+/**
+ * 7. 預算紀錄 (擴充功能預備)
  */
 export interface BudgetRecord {
   id: string;
-  eventId?: string;    // 若關聯到特定行程
+  eventId?: string;
   category: EventCategory;
   amount: number;
   title: string;
   date: string;
-}
-
-/**
- * 住宿中心定義 (用於 InfoView)
- */
-export interface HotelInfo {
-  day: number;
-  hotelName: string;
-  address: string;
-  checkIn: string;
 }
