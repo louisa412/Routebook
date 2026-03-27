@@ -3,10 +3,10 @@ import { ref, onMounted } from 'vue'
 import { useTripStore } from './stores/tripStore'
 import type { TripEvent } from './types'
 
-// 引入更新後的組件
+// 引入組件
 import TimelineView from './components/TimelineView.vue'
 import ListView from './components/ListView.vue'
-import EventEditModal from './components/EventEditModal.vue' // 💡 確保路徑與名稱正確
+import EventEditModal from './components/EventEditModal.vue'
 import BudgetView from './components/BudgetView.vue'
 import ProfileView from './components/ProfileView.vue'
 
@@ -21,6 +21,7 @@ const tabs = [
   { id: 'profile', name: '個人' }
 ]
 
+// 💡 確保組件掛載後啟動雲端監聽
 onMounted(() => {
   tripStore.initAuth()
 })
@@ -29,25 +30,31 @@ onMounted(() => {
 const isEditing = ref(false)
 const selectedEvent = ref<TripEvent | null>(null)
 
-// 💡 準備新增行程
+/**
+ * 💡 修復重點：對齊新版 Schema
+ * 當點擊 Timeline 的 "+" 號時，預設建立一個一小時的區間
+ */
 const prepareAdd = (hour: number) => {
+  const startStr = `${String(hour).padStart(2, '0')}:00`
+  const endStr = `${String(hour + 1).padStart(2, '0')}:00`
+  
   selectedEvent.value = { 
-    id: Date.now().toString(), 
+    id: `event-${Date.now()}`, 
     title: '', 
     location: '', 
-    category: '景點', 
-    hour: hour, 
-    minute: 0, 
-    budget: 0, 
-    dateIndex: tripStore.currentDayIndex, 
+    category: 'spot', // 💡 改用英文 Key
+    startTime: startStr, 
+    endTime: endStr, 
+    price: 0, 
+    day: tripStore.currentDayIndex, 
     images: [], 
     note: '',
-    isAtAccommodation: false 
+    isHotel: false 
   } as TripEvent
   isEditing.value = true
 }
 
-// 💡 打開編輯行程
+// 打開編輯行程
 const openEdit = (event: TripEvent) => {
   selectedEvent.value = event
   isEditing.value = true
@@ -66,7 +73,7 @@ const openEdit = (event: TripEvent) => {
       <div class="h-1.5 w-full bg-white rounded-full overflow-hidden shadow-inner">
         <div 
           class="h-full bg-[#6D5FB1] transition-all duration-700 ease-out" 
-          :style="{ width: Math.min((tripStore.totalSpent / tripStore.totalBudget * 100), 100) + '%' }"
+          :style="{ width: Math.min((tripStore.totalSpent / (tripStore.totalBudget || 1) * 100), 100) + '%' }"
         ></div>
       </div>
     </header>
@@ -86,7 +93,7 @@ const openEdit = (event: TripEvent) => {
         :categories="['行前', '證件', '交通', '行李']"
         @add="(data: any) => tripStore.addTodo(data.title, data.category)"
         @update="() => tripStore.saveToCloud()"
-        @delete="(id: string) => { tripStore.todos = tripStore.todos.filter(t => t.id !== id); tripStore.saveToCloud(); }" 
+        @delete="(id: string) => tripStore.deleteTodo?.(id)" 
       />
 
       <ListView 
@@ -97,7 +104,7 @@ const openEdit = (event: TripEvent) => {
         :categories="['藥妝', '伴手禮', '服飾', '零食', '電器']"
         @add="(data: any) => tripStore.addShoppingItem(data.title, data.category)"
         @update="() => tripStore.saveToCloud()"
-        @delete="(id: string) => { tripStore.shoppingList = tripStore.shoppingList.filter(s => s.id !== id); tripStore.saveToCloud(); }" 
+        @delete="(id: string) => tripStore.deleteShoppingItem?.(id)" 
       />
 
       <BudgetView v-if="currentTab === 'budget'" />
@@ -127,7 +134,6 @@ const openEdit = (event: TripEvent) => {
 </template>
 
 <style>
-/* 全域字體校準 */
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap');
 
 :root {
@@ -140,10 +146,10 @@ body {
   margin: 0;
   background-color: var(--rt-bg);
   font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  color: var(--rt-text);
   -webkit-tap-highlight-color: transparent;
 }
 
-/* 隱藏捲軸 */
 ::-webkit-scrollbar {
   display: none;
 }
