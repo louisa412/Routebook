@@ -12,36 +12,38 @@
         <div class="space-y-5">
           <div>
             <label class="text-[#757199] text-[10px] font-bold uppercase tracking-widest mb-2 block">行程名稱</label>
-            <input v-model="editForm.title" type="text" class="w-full bg-white border-none rounded-[18px] p-4 text-[#231F40] font-bold shadow-sm focus:ring-2 focus:ring-[#6D5FB1] outline-none" />
+            <input v-model="editForm.title" type="text" placeholder="例如：由布院之森" class="w-full bg-white border-none rounded-[18px] p-4 text-[#231F40] font-bold shadow-sm focus:ring-2 focus:ring-[#6D5FB1] outline-none" />
           </div>
 
           <div class="grid grid-cols-2 gap-4">
             <div>
               <label class="text-[#757199] text-[10px] font-bold uppercase mb-2 block">開始時間</label>
-              <div class="flex gap-2">
-                <input v-model.number="editForm.hour" type="number" min="0" max="23" class="w-full bg-white border-none rounded-[18px] p-3 text-center font-bold text-[#6D5FB1]" />
-                <span class="flex items-center text-[#6D5FB1]">:</span>
-                <input v-model.number="editForm.minute" type="number" min="0" max="59" class="w-full bg-white border-none rounded-[18px] p-3 text-center font-bold text-[#6D5FB1]" />
-              </div>
+              <input v-model="editForm.startTime" type="time" class="w-full bg-white border-none rounded-[18px] p-3 text-center font-bold text-[#6D5FB1] shadow-sm outline-none cursor-pointer" />
+            </div>
+            <div>
+              <label class="text-[#757199] text-[10px] font-bold uppercase mb-2 block">結束時間</label>
+              <input v-model="editForm.endTime" type="time" class="w-full bg-white border-none rounded-[18px] p-3 text-center font-bold text-[#6D5FB1] shadow-sm outline-none cursor-pointer" />
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="text-[#757199] text-[10px] font-bold uppercase mb-2 block">地點</label>
+              <input 
+                v-model="editForm.location" 
+                type="text" 
+                :placeholder="editForm.isHotel ? '自動連動住宿' : '輸入地點'"
+                class="w-full bg-white border-none rounded-[18px] p-3 text-[#231F40] text-sm shadow-sm outline-none"
+              />
             </div>
             <div>
               <label class="text-[#757199] text-[10px] font-bold uppercase mb-2 block">預算 (JPY)</label>
-              <input v-model.number="editForm.budget" type="number" class="w-full bg-white border-none rounded-[18px] p-3 text-[#6D5FB1] font-bold shadow-sm outline-none" />
+              <input v-model.number="editForm.price" type="number" class="w-full bg-white border-none rounded-[18px] p-3 text-[#6D5FB1] font-bold shadow-sm outline-none" />
             </div>
           </div>
 
           <div>
-            <label class="text-[#757199] text-[10px] font-bold uppercase mb-2 block">地點</label>
-            <input 
-              v-model="editForm.location" 
-              type="text" 
-              :placeholder="editForm.isAtAccommodation ? '自動帶入飯店地址' : '輸入詳細地點或地址'"
-              class="w-full bg-white border-none rounded-[18px] p-4 text-[#231F40] text-sm shadow-sm outline-none"
-            />
-          </div>
-
-          <div>
-            <label class="text-[#757199] text-[10px] font-bold uppercase mb-2 block">行程照片附件 (Firebase Storage)</label>
+            <label class="text-[#757199] text-[10px] font-bold uppercase mb-2 block">行程照片附件</label>
             <div class="flex flex-wrap gap-3">
               <div v-for="(url, idx) in editForm.images" :key="idx" class="relative group">
                 <div 
@@ -65,7 +67,7 @@
 
           <div>
             <label class="text-[#757199] text-[10px] font-bold uppercase mb-2 block">備註 (Note)</label>
-            <textarea v-model="editForm.note" rows="3" class="w-full bg-white border-none rounded-[18px] p-4 text-[#231F40] text-sm shadow-sm outline-none resize-none"></textarea>
+            <textarea v-model="editForm.note" rows="3" placeholder="寫些小提醒..." class="w-full bg-white border-none rounded-[18px] p-4 text-[#231F40] text-sm shadow-sm outline-none resize-none"></textarea>
           </div>
 
           <div class="flex gap-3 pt-4 pb-2">
@@ -82,7 +84,7 @@
 import { ref, watch } from 'vue'
 import { useTripStore } from '../stores/tripStore'
 import type { TripEvent } from '../types'
-import { storage } from '../firebase' // 確保 firebase/index.ts 有 export storage
+import { storage } from '../firebase'
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage'
 
 const props = defineProps<{
@@ -99,7 +101,8 @@ const isUploading = ref(false)
 // 監聽傳入的事件進行初始化
 watch(() => props.event, (newVal) => {
   if (newVal) {
-    editForm.value = JSON.parse(JSON.stringify(newVal)) // 深拷貝，避免直接改到 Store
+    // 深拷貝，確保在點擊「儲存」前不會影響到全域資料
+    editForm.value = JSON.parse(JSON.stringify(newVal))
   }
 }, { immediate: true })
 
@@ -110,7 +113,6 @@ const handleFileUpload = async (e: Event) => {
 
   isUploading.value = true
   try {
-    // 建立路徑：trips/{tripId}/{eventId}/{timestamp}_{filename}
     const fileName = `${Date.now()}_${file.name}`
     const fileRef = storageRef(storage, `trips/${tripStore.tripName}/${editForm.value.id}/${fileName}`)
     
@@ -121,7 +123,7 @@ const handleFileUpload = async (e: Event) => {
     editForm.value.images.push(downloadURL)
   } catch (error) {
     console.error('上傳失敗:', error)
-    alert('照片上傳失敗，請檢查 Firebase Storage 權限設定。')
+    alert('照片上傳失敗，請檢查網路或 Firebase 設定。')
   } finally {
     isUploading.value = false
   }
@@ -132,12 +134,14 @@ const removeImage = (idx: number) => {
 }
 
 const handleSave = () => {
-  // 將修改後的資料同步回 Store
-  const idx = tripStore.events.findIndex(e => e.id === editForm.value.id)
-  if (idx !== -1) {
-    tripStore.events[idx] = { ...editForm.value }
-    tripStore.saveToCloud() // 觸發 Firebase Firestore 同步
+  // 檢查時間邏輯 (J 人嚴選：結束時間不能早於開始時間)
+  if (editForm.value.endTime <= editForm.value.startTime) {
+    alert('J 人提示：結束時間必須晚於開始時間喔！')
+    return
   }
+
+  // 使用 Store 內建方法更新，會自動觸發 Firebase 同步
+  tripStore.updateEvent({ ...editForm.value })
   emit('close')
 }
 </script>
@@ -146,16 +150,13 @@ const handleSave = () => {
 .animate-slide-up {
   animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1);
 }
-
 @keyframes slideUp {
   from { transform: translateY(100%); }
   to { transform: translateY(0); }
 }
-
-/* 隱藏 Number Input 的箭頭 */
-input::-webkit-outer-spin-button,
-input::-webkit-inner-spin-button {
+/* 讓 iOS 上的 time input 更好看 */
+input[type="time"] {
   -webkit-appearance: none;
-  margin: 0;
+  min-height: 44px;
 }
 </style>
