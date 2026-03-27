@@ -7,7 +7,7 @@
         <input 
           v-model="newItemTitle" 
           :placeholder="placeholder" 
-          class="flex-1 bg-transparent border-none p-3 outline-none text-[#231F40] text-sm font-medium"
+          class="flex-1 bg-transparent border-none p-3 outline-none text-[#231F40] text-sm font-bold placeholder:text-[#757199]/40"
           @keyup.enter="handleAddItem" 
         />
         
@@ -36,7 +36,7 @@
             v-for="item in groupItems" 
             :key="item.id" 
             class="list-item bg-white p-4 rounded-[24px] flex items-center gap-4 shadow-sm border border-transparent transition-all"
-            :class="{ 'opacity-50 grayscale-[0.5]': item.completed }"
+            :class="{ 'opacity-60': item.completed, 'ring-2 ring-[#6D5FB1]/20': editingId === item.id }"
           >
             <div 
               @click="toggleItem(item)"
@@ -48,22 +48,45 @@
               </svg>
             </div>
 
-            <div class="flex-1" @click="toggleItem(item)">
-              <div class="text-[#231F40] font-bold text-[15px]" :class="{ 'line-through decoration-[#6D5FB1]/30': item.completed }">
+            <div class="flex-1 min-w-0">
+              <input 
+                v-if="editingId === item.id"
+                v-model="editBuffer"
+                @blur="saveEdit(item)"
+                @keyup.enter="saveEdit(item)"
+                @keyup.esc="cancelEdit"
+                v-focus
+                class="w-full bg-[#EFEEF7] border-none rounded-lg px-2 py-1 text-[#231F40] font-bold text-[15px] outline-none"
+              />
+              <div 
+                v-else
+                @click="startEdit(item)"
+                class="text-[#231F40] font-bold text-[15px] truncate cursor-text"
+                :class="{ 'line-through decoration-[#6D5FB1]/40 text-[#757199]': item.completed }"
+              >
                 {{ item.title }}
               </div>
             </div>
 
-            <button @click="$emit('delete', item.id)" class="text-[#757199]/40 hover:text-red-400 text-xl px-2 transition-colors">
-              ×
-            </button>
+            <div class="flex items-center gap-1">
+              <button 
+                v-if="editingId !== item.id"
+                @click="startEdit(item)" 
+                class="text-[#757199]/30 hover:text-[#6D5FB1] p-2 text-sm"
+              >
+                ✎
+              </button>
+              <button @click="$emit('delete', item.id)" class="text-[#757199]/30 hover:text-red-400 p-2 text-xl">
+                ×
+              </button>
+            </div>
           </div>
         </div>
       </div>
     </div>
 
-    <div v-if="items.length === 0" class="py-20 flex flex-col items-center justify-center text-[#757199]/40 animate-fade-in">
-      <div class="text-4xl mb-3">📝</div>
+    <div v-if="items.length === 0" class="py-20 flex flex-col items-center justify-center text-[#757199]/40">
+      <div class="text-4xl mb-3 opacity-20">📝</div>
       <p class="text-xs font-bold tracking-widest uppercase">目前沒有計畫項目</p>
     </div>
   </div>
@@ -85,22 +108,24 @@ const emit = defineEmits(['add', 'delete', 'update'])
 const newItemTitle = ref('')
 const selectedCategory = ref('')
 
-// 初始與監聽：確保分類選擇器隨時有預設值
+// 編輯模式狀態
+const editingId = ref<string | null>(null)
+const editBuffer = ref('')
+
+// 自定義指令：進入編輯時自動聚焦
+const vFocus = {
+  mounted: (el: HTMLInputElement) => el.focus()
+}
+
 watch(() => props.categories, (newCats) => {
   if (newCats.length > 0 && !selectedCategory.value) {
     selectedCategory.value = newCats[0]
   }
 }, { immediate: true })
 
-/**
- * 💡 關鍵修復：嚴謹的分類邏輯
- * 將傳入的 items 根據 category 進行分組
- */
 const groupedItems = computed(() => {
   if (!props.items) return {}
-  
   return props.items.reduce((acc, item) => {
-    // 優先使用項目自帶分類，若無則標記為「其他」
     const cat = item.category || '其他'
     if (!acc[cat]) acc[cat] = []
     acc[cat].push(item)
@@ -110,47 +135,54 @@ const groupedItems = computed(() => {
 
 const handleAddItem = () => {
   if (!newItemTitle.value.trim()) return
-  
-  // 向父組件拋出新增事件
-  emit('add', {
-    title: newItemTitle.value,
-    category: selectedCategory.value || '未分類'
-  })
-  
-  // 清空輸入框，保持介面乾淨
+  emit('add', { title: newItemTitle.value, category: selectedCategory.value || '未分類' })
   newItemTitle.value = ''
 }
 
+// ✎ 編輯邏輯
+const startEdit = (item: ListItem) => {
+  if (item.completed) return // 已完成的項目不開放編輯（除非取消勾選）
+  editingId.value = item.id
+  editBuffer.value = item.title
+}
+
+const saveEdit = (item: ListItem) => {
+  if (editingId.value === null) return
+  const trimmed = editBuffer.value.trim()
+  
+  if (trimmed && trimmed !== item.title) {
+    emit('update', { ...item, title: trimmed })
+  }
+  editingId.value = null
+}
+
+const cancelEdit = () => {
+  editingId.value = null
+}
+
 const toggleItem = (item: ListItem) => {
-  // 透過解構確保不直接污染 Props 資料流 (雖然 Vue 不建議改 Prop，但這裡我們會 emit update)
-  const updatedItem = { ...item, completed: !item.completed }
-  emit('update', updatedItem)
+  emit('update', { ...item, completed: !item.completed })
 }
 </script>
 
 <style scoped>
 .list-view {
   font-family: 'Plus Jakarta Sans', -apple-system, sans-serif;
-  animation: slideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+  animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 @keyframes slideUp {
-  from { opacity: 0; transform: translateY(20px); }
+  from { opacity: 0; transform: translateY(10px); }
   to { opacity: 1; transform: translateY(0); }
 }
 
-.animate-fade-in {
-  animation: fadeIn 1s ease-in-out;
-}
-
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
-/* 移除原生 Select 的生硬感 */
-select {
+select, input {
   -webkit-appearance: none;
   appearance: none;
+}
+
+/* 修飾刪除線顏色 */
+.line-through {
+  text-decoration-thickness: 2px;
 }
 </style>
