@@ -1,32 +1,34 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import type { TripEvent, TripDay, ListItem } from '../types'
-import { FUKUOKA_EVENTS, FUKUOKA_LODGING } from '../data/fukuokaData' // 💡 從資料檔導入
+import type { TripEvent, TripDay, ListItem, HotelInfo } from '../types'
+import { FUKUOKA_EVENTS, FUKUOKA_LODGING } from '../data/fukuokaData'
 import { db, auth } from '../firebase'
 import { doc, onSnapshot, setDoc } from 'firebase/firestore'
 import { onAuthStateChanged } from 'firebase/auth'
 
 export const useTripStore = defineStore('trip', () => {
-  // --- 1. 基礎設定 (可隨時從設定頁修改) ---
+  // --- 1. 基礎設定 ---
   const tripName = ref('福岡春季漫遊 2026')
   const startDate = ref('2026-04-08')
   const totalDays = ref(6)
   const currentDayIndex = ref(0)
   const isSyncing = ref(false)
 
-  // --- 2. 住宿資訊 (💡 初始化為福岡資料，但保持響應式) ---
+  // --- 2. 住宿資訊 ( lodging ) ---
   const lodging = ref<Record<number, { name: string, address: string }>>({ ...FUKUOKA_LODGING })
 
-  // --- 3. 行程事件 (💡 根據導入的事件進行加工) ---
+  // --- 3. 行程事件 (核心重構點) ---
+  // 將 InitialTripEvent[] 轉換為具備完整屬性的 TripEvent[]
   const events = ref<TripEvent[]>(FUKUOKA_EVENTS.map((e, index) => ({
     ...e,
-    id: `event-${index}-${Date.now()}`, // 自動生成 ID
+    id: e.id || `event-${Date.now()}-${index}`, // 如果沒 ID 就補一個
     images: [],
     note: '',
-    isAtAccommodation: e.title.includes('飯店') || e.title.includes('晚安')
+    // 自動判斷是否為住宿連動項目
+    isHotel: e.category === 'hotel' || e.title.includes('飯店') || e.title.includes('晚安')
   })))
 
-  // --- 4. 日期計算邏輯 (動態根據 startDate 生成) ---
+  // --- 4. 日期計算邏輯 ---
   const days = computed<TripDay[]>(() => {
     const dayLabels = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT']
     return Array.from({ length: totalDays.value }, (_, i) => {
@@ -43,33 +45,33 @@ export const useTripStore = defineStore('trip', () => {
     })
   })
 
-  // --- 5. 清單與預算 (保持靈活性) ---
+  // --- 5. 清單與預算 ---
   const todos = ref<ListItem[]>([])
   const shoppingList = ref<ListItem[]>([])
   const totalBudget = ref(50000)
 
-  // 自動分類邏輯
   const categorizedShopping = computed(() => {
     return shoppingList.value.reduce((acc, item) => {
-      const cat = item.category || '未分類';
-      if (!acc[cat]) acc[cat] = [];
-      acc[cat].push(item);
-      return acc;
-    }, {} as Record<string, ListItem[]>);
-  });
+      const cat = item.category || '未分類'
+      if (!acc[cat]) acc[cat] = []
+      acc[cat].push(item)
+      return acc
+    }, {} as Record<string, ListItem[]>)
+  })
 
   const categorizedTodos = computed(() => {
     return todos.value.reduce((acc, item) => {
-      const cat = item.category || '未分類';
-      if (!acc[cat]) acc[cat] = [];
-      acc[cat].push(item);
-      return acc;
-    }, {} as Record<string, ListItem[]>);
-  });
+      const cat = item.category || '未分類'
+      if (!acc[cat]) acc[cat] = []
+      acc[cat].push(item)
+      return acc
+    }, {} as Record<string, ListItem[]>)
+  })
 
-  const totalSpent = computed(() => events.value.reduce((sum, e) => sum + (e.budget || 0), 0))
+  // 💡 注意：這裡已改用 e.price
+  const totalSpent = computed(() => events.value.reduce((sum, e) => sum + (e.price || 0), 0))
 
-  // --- 6. 雲端同步 (包含住宿資料) ---
+  // --- 6. 雲端同步 ---
   const saveToCloud = async () => {
     const user = auth.currentUser
     if (!user) return
@@ -82,12 +84,14 @@ export const useTripStore = defineStore('trip', () => {
         events: events.value,
         todos: todos.value,
         shoppingList: shoppingList.value,
-        lodging: lodging.value, // 同步住宿資訊
+        lodging: lodging.value,
         totalBudget: totalBudget.value,
         lastUpdated: new Date()
       }, { merge: true })
       setTimeout(() => { isSyncing.value = false }, 500)
-    } catch (e) { console.error("同步失敗", e) }
+    } catch (e) {
+      console.error("同步失敗", e)
+    }
   }
 
   const initAuth = () => {
@@ -97,9 +101,13 @@ export const useTripStore = defineStore('trip', () => {
           if (snapshot.exists()) {
             const data = snapshot.data()
             if (data.tripName) tripName.value = data.tripName
+            if (data.startDate) startDate.value = data.startDate
+            if (data.totalDays) totalDays.value = data.totalDays
             if (data.events) events.value = data.events
             if (data.lodging) lodging.value = data.lodging
-            // ... 其他同步邏輯
+            if (data.todos) todos.value = data.todos
+            if (data.shoppingList) shoppingList.value = data.shoppingList
+            if (data.totalBudget) totalBudget.value = data.totalBudget
           }
         })
       }
@@ -107,21 +115,35 @@ export const useTripStore = defineStore('trip', () => {
   }
 
   // 操作方法
-  const addEvent = (e: TripEvent) => { events.value.push(e); saveToCloud(); }
-  const addTodo = (title: string, category: string) => { 
-    todos.value.push({ id: Date.now().toString(), title, category, completed: false }); 
-    saveToCloud(); 
+  const addEvent = (e: TripEvent) => {
+    events.value.push(e)
+    saveToCloud()
   }
-  const addShoppingItem = (title: string, category: string) => {
-    shoppingList.value.push({ id: Date.now().toString(), title, category, completed: false });
-    saveToCloud();
+
+  const updateEvent = (updatedEvent: TripEvent) => {
+    const index = events.value.findIndex(e => e.id === updatedEvent.id)
+    if (index !== -1) {
+      events.value[index] = updatedEvent
+      saveToCloud()
+    }
+  }
+
+  const deleteEvent = (id: string) => {
+    events.value = events.value.filter(e => e.id !== id)
+    saveToCloud()
   }
 
   return {
     tripName, startDate, totalDays, currentDayIndex, days, events, isSyncing, lodging,
-    todos, categorizedTodos, addTodo, 
-    shoppingList, categorizedShopping, addShoppingItem,
+    todos, categorizedTodos, addTodo: (title: string, category: string) => { 
+      todos.value.push({ id: Date.now().toString(), title, category, completed: false })
+      saveToCloud()
+    }, 
+    shoppingList, categorizedShopping, addShoppingItem: (title: string, category: string) => {
+      shoppingList.value.push({ id: Date.now().toString(), title, category, completed: false })
+      saveToCloud()
+    },
     totalBudget, totalSpent,
-    addEvent, initAuth, saveToCloud
+    addEvent, updateEvent, deleteEvent, initAuth, saveToCloud
   }
 }, { persist: true })
