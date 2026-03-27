@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import type { TripEvent, TripDay, ListItem, HotelInfo } from '../types'
+import type { TripEvent, TripDay, ListItem } from '../types'
 import { FUKUOKA_EVENTS, FUKUOKA_LODGING } from '../data/fukuokaData'
 import { db, auth } from '../firebase'
 import { doc, onSnapshot, setDoc } from 'firebase/firestore'
@@ -14,17 +14,17 @@ export const useTripStore = defineStore('trip', () => {
   const currentDayIndex = ref(0)
   const isSyncing = ref(false)
 
-  // --- 2. 住宿資訊 ( lodging ) ---
+  // --- 2. 住宿資訊 ---
   const lodging = ref<Record<number, { name: string, address: string }>>({ ...FUKUOKA_LODGING })
 
-  // --- 3. 行程事件 (核心重構點) ---
-  // 將 InitialTripEvent[] 轉換為具備完整屬性的 TripEvent[]
+  // --- 3. 行程事件 (初始化邏輯) ---
   const events = ref<TripEvent[]>(FUKUOKA_EVENTS.map((e, index) => ({
     ...e,
-    id: e.id || `event-${Date.now()}-${index}`, // 如果沒 ID 就補一個
-    images: [],
-    note: '',
-    // 自動判斷是否為住宿連動項目
+    id: e.id || `event-${Date.now()}-${index}`,
+    images: e.images || [],
+    note: e.note || '',
+    price: e.price || 0,
+    day: e.day !== undefined ? e.day : 0,
     isHotel: e.category === 'hotel' || e.title.includes('飯店') || e.title.includes('晚安')
   })))
 
@@ -50,6 +50,7 @@ export const useTripStore = defineStore('trip', () => {
   const shoppingList = ref<ListItem[]>([])
   const totalBudget = ref(50000)
 
+  // 分類邏輯 (Getter)
   const categorizedShopping = computed(() => {
     return shoppingList.value.reduce((acc, item) => {
       const cat = item.category || '未分類'
@@ -68,10 +69,9 @@ export const useTripStore = defineStore('trip', () => {
     }, {} as Record<string, ListItem[]>)
   })
 
-  // 💡 注意：這裡已改用 e.price
-  const totalSpent = computed(() => events.value.reduce((sum, e) => sum + (e.price || 0), 0))
+  const totalSpent = computed(() => events.value.reduce((sum, e) => sum + (Number(e.price) || 0), 0))
 
-  // --- 6. 雲端同步 ---
+  // --- 6. 雲端同步邏輯 ---
   const saveToCloud = async () => {
     const user = auth.currentUser
     if (!user) return
@@ -105,16 +105,30 @@ export const useTripStore = defineStore('trip', () => {
             if (data.totalDays) totalDays.value = data.totalDays
             if (data.events) events.value = data.events
             if (data.lodging) lodging.value = data.lodging
-            if (data.todos) todos.value = data.todos
-            if (data.shoppingList) shoppingList.value = data.shoppingList
             if (data.totalBudget) totalBudget.value = data.totalBudget
+
+            // 💡 關鍵：相容性轉換 (Mapping old 'name' to new 'title')
+            if (data.todos) {
+              todos.value = data.todos.map((item: any) => ({
+                ...item,
+                title: item.title || item.name || '未命名項目',
+                category: item.category || '其他'
+              }))
+            }
+            if (data.shoppingList) {
+              shoppingList.value = data.shoppingList.map((item: any) => ({
+                ...item,
+                title: item.title || item.name || '未命名項目',
+                category: item.category || '其他'
+              }))
+            }
           }
         })
       }
     })
   }
 
-  // 操作方法
+  // --- 7. 操作方法 ---
   const addEvent = (e: TripEvent) => {
     events.value.push(e)
     saveToCloud()
@@ -123,7 +137,7 @@ export const useTripStore = defineStore('trip', () => {
   const updateEvent = (updatedEvent: TripEvent) => {
     const index = events.value.findIndex(e => e.id === updatedEvent.id)
     if (index !== -1) {
-      events.value[index] = updatedEvent
+      events.value[index] = { ...updatedEvent }
       saveToCloud()
     }
   }
@@ -133,16 +147,30 @@ export const useTripStore = defineStore('trip', () => {
     saveToCloud()
   }
 
+  const addTodo = (title: string, category: string) => {
+    todos.value.push({ 
+      id: `todo-${Date.now()}`, 
+      title, 
+      category, 
+      completed: false 
+    })
+    saveToCloud()
+  }
+
+  const addShoppingItem = (title: string, category: string) => {
+    shoppingList.value.push({ 
+      id: `shop-${Date.now()}`, 
+      title, 
+      category, 
+      completed: false 
+    })
+    saveToCloud()
+  }
+
   return {
     tripName, startDate, totalDays, currentDayIndex, days, events, isSyncing, lodging,
-    todos, categorizedTodos, addTodo: (title: string, category: string) => { 
-      todos.value.push({ id: Date.now().toString(), title, category, completed: false })
-      saveToCloud()
-    }, 
-    shoppingList, categorizedShopping, addShoppingItem: (title: string, category: string) => {
-      shoppingList.value.push({ id: Date.now().toString(), title, category, completed: false })
-      saveToCloud()
-    },
+    todos, categorizedTodos, addTodo,
+    shoppingList, categorizedShopping, addShoppingItem,
     totalBudget, totalSpent,
     addEvent, updateEvent, deleteEvent, initAuth, saveToCloud
   }
