@@ -17,7 +17,7 @@ export const useTripStore = defineStore('trip', () => {
   // --- 2. 住宿資訊 ---
   const lodging = ref<Record<number, { name: string, address: string }>>({ ...FUKUOKA_LODGING })
 
-  // --- 3. 行程事件 (初始化邏輯) ---
+  // --- 3. 行程事件 (初始化與清洗) ---
   const events = ref<TripEvent[]>(FUKUOKA_EVENTS.map((e, index) => ({
     ...e,
     id: e.id || `event-${Date.now()}-${index}`,
@@ -50,7 +50,6 @@ export const useTripStore = defineStore('trip', () => {
   const shoppingList = ref<ListItem[]>([])
   const totalBudget = ref(50000)
 
-  // 分類邏輯 (Getter)
   const categorizedShopping = computed(() => {
     return shoppingList.value.reduce((acc, item) => {
       const cat = item.category || '未分類'
@@ -71,7 +70,7 @@ export const useTripStore = defineStore('trip', () => {
 
   const totalSpent = computed(() => events.value.reduce((sum, e) => sum + (Number(e.price) || 0), 0))
 
-  // --- 6. 雲端同步邏輯 ---
+  // --- 6. 雲端同步與初始化 ---
   const saveToCloud = async () => {
     const user = auth.currentUser
     if (!user) return
@@ -89,9 +88,7 @@ export const useTripStore = defineStore('trip', () => {
         lastUpdated: new Date()
       }, { merge: true })
       setTimeout(() => { isSyncing.value = false }, 500)
-    } catch (e) {
-      console.error("同步失敗", e)
-    }
+    } catch (e) { console.error("同步失敗", e) }
   }
 
   const initAuth = () => {
@@ -107,7 +104,7 @@ export const useTripStore = defineStore('trip', () => {
             if (data.lodging) lodging.value = data.lodging
             if (data.totalBudget) totalBudget.value = data.totalBudget
 
-            // 💡 關鍵：相容性轉換 (Mapping old 'name' to new 'title')
+            // 相容性轉換 (Mapping old 'name' to new 'title')
             if (data.todos) {
               todos.value = data.todos.map((item: any) => ({
                 ...item,
@@ -128,49 +125,53 @@ export const useTripStore = defineStore('trip', () => {
     })
   }
 
-  // --- 7. 操作方法 ---
-  const addEvent = (e: TripEvent) => {
-    events.value.push(e)
-    saveToCloud()
-  }
+  // --- 7. 操作方法 (CRUD) ---
 
+  // 行程操作
+  const addEvent = (e: TripEvent) => { events.value.push(e); saveToCloud(); }
   const updateEvent = (updatedEvent: TripEvent) => {
     const index = events.value.findIndex(e => e.id === updatedEvent.id)
-    if (index !== -1) {
-      events.value[index] = { ...updatedEvent }
-      saveToCloud()
-    }
+    if (index !== -1) { events.value[index] = { ...updatedEvent }; saveToCloud(); }
   }
-
   const deleteEvent = (id: string) => {
-    events.value = events.value.filter(e => e.id !== id)
-    saveToCloud()
+    events.value = events.value.filter(e => e.id !== id);
+    saveToCloud();
   }
 
-  const addTodo = (item: { title: string, category: string }) => {
+  // 待辦清單操作
+  const addTodo = (title: string, category: string) => {
     todos.value.push({ 
       id: `todo-${Date.now()}`, 
-      title: item.title, 
-      category: item.category, 
+      title, 
+      category, 
       completed: false 
     })
     saveToCloud()
   }
+  const deleteTodo = (id: string) => {
+    todos.value = todos.value.filter(t => t.id !== id)
+    saveToCloud()
+  }
 
-  const addShoppingItem = (item: { title: string, category: string }) => {
+  // 購物清單操作
+  const addShoppingItem = (title: string, category: string) => {
     shoppingList.value.push({ 
       id: `shop-${Date.now()}`, 
-      title: item.title, 
-      category: item.category, 
+      title, 
+      category, 
       completed: false 
     })
+    saveToCloud()
+  }
+  const deleteShoppingItem = (id: string) => {
+    shoppingList.value = shoppingList.value.filter(s => s.id !== id)
     saveToCloud()
   }
 
   return {
     tripName, startDate, totalDays, currentDayIndex, days, events, isSyncing, lodging,
-    todos, categorizedTodos, addTodo,
-    shoppingList, categorizedShopping, addShoppingItem,
+    todos, categorizedTodos, addTodo, deleteTodo,
+    shoppingList, categorizedShopping, addShoppingItem, deleteShoppingItem,
     totalBudget, totalSpent,
     addEvent, updateEvent, deleteEvent, initAuth, saveToCloud
   }
