@@ -1,50 +1,40 @@
 <template>
-  <div class="info-view bg-[#EFEEF7] min-h-screen p-6 pb-32">
-    <header class="mb-8">
-      <h1 class="text-[#231F40] text-2xl font-extrabold mb-1">住宿指揮中心</h1>
-      <p class="text-[#757199] text-sm font-medium">設定後，行程卡片將自動連動地址</p>
-    </header>
+  <div class="info-view px-5 py-6">
+    <h2 class="text-[#231F40] text-2xl font-black mb-6">住宿安排</h2>
 
     <div class="space-y-4">
       <div 
         v-for="(day, index) in tripStore.days" 
         :key="index"
-        class="lodging-card bg-white p-5 rounded-[28px] shadow-sm border border-transparent focus-within:border-[#6D5FB1]/20 transition-all"
+        class="hotel-card bg-white p-5 rounded-[28px] shadow-sm border border-[#6D5FB1]/5 flex gap-4 items-center"
       >
-        <div class="flex justify-between items-center mb-4">
-          <div class="flex items-center gap-2">
-            <span class="bg-[#6D5FB1] text-white text-[10px] font-black px-2 py-1 rounded-lg uppercase">
-              {{ day.dayTitle }}
-            </span>
-            <span class="text-[#757199] text-[11px] font-bold uppercase tracking-wider">
-              {{ day.displayLabel }}
-            </span>
-          </div>
-          <div class="text-[#DEDAF4]">🏨</div>
+        <div class="day-badge bg-[#EFEEF7] w-14 h-14 rounded-[20px] flex flex-col items-center justify-center flex-shrink-0">
+          <span class="text-[#6D5FB1] text-[10px] font-black uppercase">{{ day.weekday }}</span>
+          <span class="text-[#6D5FB1] text-lg font-black">{{ index + 1 }}</span>
         </div>
 
-        <div class="mb-3">
-          <label class="text-[10px] text-[#757199] font-black uppercase mb-1 block ml-1">飯店名稱</label>
-          <input 
-            v-if="tripStore.lodging[index]"
-            v-model="tripStore.lodging[index].name" 
-            placeholder="尚未輸入飯店..." 
-            @change="tripStore.saveToCloud()"
-            class="w-full bg-[#EFEEF7]/50 border-none rounded-[16px] p-3 text-[#231F40] font-bold text-sm outline-none focus:bg-white focus:ring-2 focus:ring-[#6D5FB1]/10 transition-all" 
-          />
+        <div class="flex-1 min-w-0">
+          <p class="text-[#757199] text-[10px] font-bold uppercase tracking-widest mb-1">
+            {{ day.displayLabel }} 住宿
+          </p>
+          <h3 class="text-[#231F40] text-base font-black truncate">
+            {{ tripStore.lodging[index]?.name || '尚未設定飯店' }}
+          </h3>
+          <p class="text-[#757199] text-xs truncate opacity-70">
+            {{ tripStore.lodging[index]?.address || '點擊編輯地址' }}
+          </p>
         </div>
 
-        <div>
-          <label class="text-[10px] text-[#757199] font-black uppercase mb-1 block ml-1">飯店地址 (Google Maps 連動用)</label>
-          <input 
-            v-if="tripStore.lodging[index]"
-            v-model="tripStore.lodging[index].address" 
-            placeholder="尚未輸入地址..." 
-            @change="tripStore.saveToCloud()"
-            class="w-full bg-[#EFEEF7]/50 border-none rounded-[16px] p-3 text-[#757199] font-medium text-xs outline-none focus:bg-white focus:ring-2 focus:ring-[#6D5FB1]/10 transition-all" 
-          />
-        </div>
+        <button class="w-10 h-10 rounded-full bg-[#F8F7FF] text-[#6D5FB1] flex items-center justify-center">
+          📍
+        </button>
       </div>
+    </div>
+
+    <div class="mt-8 p-6 bg-[#6D5FB1]/5 rounded-[24px] border border-dashed border-[#6D5FB1]/20">
+      <p class="text-[#6D5FB1] text-xs font-bold leading-relaxed">
+        💡 Routebook 提醒：住宿資訊會自動連動至時間軸中標記為「飯店」或「住宿」的行程卡片。
+      </p>
     </div>
   </div>
 </template>
@@ -56,17 +46,10 @@ const tripStore = useTripStore()
 
 <style scoped>
 .info-view {
-  font-family: 'Plus Jakarta Sans', -apple-system, sans-serif;
-  animation: fadeIn 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+  animation: fadeIn 0.5s ease-out;
 }
-
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-/* 讓 iOS 點擊輸入框更滑順 */
-input {
-  -webkit-tap-highlight-color: transparent;
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 </style>
