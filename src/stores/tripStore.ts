@@ -7,6 +7,9 @@ import { doc, onSnapshot, setDoc } from 'firebase/firestore'
 import { onAuthStateChanged } from 'firebase/auth'
 
 export const useTripStore = defineStore('trip', () => {
+  // --- 0. 資料鎖定狀態 ---
+  const isInitialized = ref(false) // 💡 關鍵防火牆：初始為 false，禁止寫入雲端
+
   // --- 1. 基礎設定 ---
   const tripName = ref('福岡春季漫遊 2026')
   const startDate = ref('2026-04-08')
@@ -73,7 +76,12 @@ export const useTripStore = defineStore('trip', () => {
   // --- 6. 雲端同步與初始化 ---
   const saveToCloud = async () => {
     const user = auth.currentUser
-    if (!user) return
+    // 🛡️ 防火牆攔截：若尚未初始化完成，絕對禁止同步到雲端
+    if (!user || !isInitialized.value) {
+      console.log("🛡️ [Guard] 資料尚未初始化完成，攔截寫入請求。");
+      return;
+    }
+
     isSyncing.value = true
     try {
       await setDoc(doc(db, "users", user.uid), {
@@ -104,7 +112,7 @@ export const useTripStore = defineStore('trip', () => {
             if (data.lodging) lodging.value = data.lodging
             if (data.totalBudget) totalBudget.value = data.totalBudget
 
-            // 相容性轉換 (Mapping old 'name' to new 'title')
+            // 相容性轉換
             if (data.todos) {
               todos.value = data.todos.map((item: any) => ({
                 ...item,
@@ -120,14 +128,15 @@ export const useTripStore = defineStore('trip', () => {
               }))
             }
           }
+          // 🔓 下載完成後解鎖寫入功能
+          isInitialized.value = true
+          console.log("🔓 [Guard] 雲端資料同步完成，解鎖寫入權限。")
         })
       }
     })
   }
 
   // --- 7. 操作方法 (CRUD) ---
-
-  // 行程操作
   const addEvent = (e: TripEvent) => { events.value.push(e); saveToCloud(); }
   const updateEvent = (updatedEvent: TripEvent) => {
     const index = events.value.findIndex(e => e.id === updatedEvent.id)
@@ -138,14 +147,8 @@ export const useTripStore = defineStore('trip', () => {
     saveToCloud();
   }
 
-  // 待辦清單操作
   const addTodo = (title: string, category: string) => {
-    todos.value.push({ 
-      id: `todo-${Date.now()}`, 
-      title, 
-      category, 
-      completed: false 
-    })
+    todos.value.push({ id: `todo-${Date.now()}`, title, category, completed: false })
     saveToCloud()
   }
   const deleteTodo = (id: string) => {
@@ -153,14 +156,8 @@ export const useTripStore = defineStore('trip', () => {
     saveToCloud()
   }
 
-  // 購物清單操作
   const addShoppingItem = (title: string, category: string) => {
-    shoppingList.value.push({ 
-      id: `shop-${Date.now()}`, 
-      title, 
-      category, 
-      completed: false 
-    })
+    shoppingList.value.push({ id: `shop-${Date.now()}`, title, category, completed: false })
     saveToCloud()
   }
   const deleteShoppingItem = (id: string) => {
@@ -172,7 +169,7 @@ export const useTripStore = defineStore('trip', () => {
     tripName, startDate, totalDays, currentDayIndex, days, events, isSyncing, lodging,
     todos, categorizedTodos, addTodo, deleteTodo,
     shoppingList, categorizedShopping, addShoppingItem, deleteShoppingItem,
-    totalBudget, totalSpent,
+    totalBudget, totalSpent, isInitialized,
     addEvent, updateEvent, deleteEvent, initAuth, saveToCloud
   }
 }, { persist: true })
