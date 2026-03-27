@@ -14,114 +14,56 @@
       </button>
     </nav>
 
-    <main class="px-4 pt-6 pb-32">
-      <div v-for="hour in 24" :key="hour - 1" class="hour-row flex min-h-[80px]">
-        <div class="time-column w-12 flex flex-col items-end pr-3 relative">
-          <span class="text-[10px] font-black text-[#757199]/60 mt-0.5">{{ String(hour - 1).padStart(2, '0') }}:00</span>
-          <div class="time-node w-2 h-2 rounded-full border-2 border-[#6D5FB1] bg-white absolute -right-[5px] top-1.5 z-10"></div>
-          <div class="time-line absolute right-[-1px] top-4 bottom-[-4px] border-r border-dashed border-[#DEDAF4]"></div>
-        </div>
-
-        <div class="event-column flex-1 pl-5 pb-5">
-          <template v-if="getEventsByHour(hour - 1).length > 0">
-            <div 
-              v-for="event in getEventsByHour(hour - 1)" :key="event.id"
-              class="event-card bg-white p-4 rounded-[24px] shadow-sm border-l-[5px] mb-3 transition-all active:scale-[0.98]" 
-              :style="{ borderLeftColor: getCategoryColor(event.category) }"
-              @click="$emit('edit', event)"
-            >
-              <div class="flex items-center gap-2 mb-1.5">
-                <span class="bg-[#EFEEF7] text-[#6D5FB1] text-[10px] font-black px-2 py-0.5 rounded-full">
-                  {{ event.startTime }} - {{ event.endTime }}
-                </span>
-                <span class="text-[9px] text-[#757199] font-bold opacity-60">
-                  ({{ getDuration(event.startTime, event.endTime) }}m)
-                </span>
-              </div>
-              <h3 class="text-[#231F40] text-[15px] font-black leading-tight mb-2">{{ event.title }}</h3>
-
-              <p class="text-[#757199] text-[11px] font-medium flex items-center gap-1 mb-2">
-                <span class="opacity-50 text-[12px]">📍</span> 
-                {{ event.isHotel ? (tripStore.lodging[tripStore.currentDayIndex]?.name || '住宿地點') : event.location }}
-              </p>
-              
-              <div class="flex justify-between items-end">
-                <div v-if="event.images && event.images.length > 0" class="flex gap-1.5">
-                  <div 
-                    v-for="(img, imgIdx) in event.images.slice(0, 3)" :key="imgIdx"
-                    class="w-9 h-9 rounded-[10px] bg-cover bg-center border border-[#EFEEF7]"
-                    :style="{ backgroundImage: `url(${img})` }"
-                  ></div>
-                  <div v-if="event.images.length > 3" class="h-9 w-9 rounded-[10px] bg-[#EFEEF7] flex items-center justify-center text-[9px] font-bold text-[#6D5FB1]">
-                    +{{ event.images.length - 3 }}
-                  </div>
-                </div>
-                <div v-else></div> 
-
-                <div v-if="event.price && event.price > 0" class="text-[#6D5FB1] text-[11px] font-black flex items-center gap-0.5">
-                  <span class="text-[9px] opacity-60">JPY</span> ¥{{ event.price.toLocaleString() }}
-                </div>
-              </div>
-            </div>
-          </template>
-
-          <div v-else class="h-10 border border-dashed border-[#DEDAF4]/40 rounded-[18px] flex items-center justify-center cursor-pointer hover:bg-white/40 transition-colors" @click="addNewAtHour(hour - 1)">
-            <span class="text-[#DEDAF4] text-lg font-light">+</span>
-          </div>
-        </div>
-      </div>
-    </main>
+<main class="px-4 pt-6 pb-32 relative">
+  <div v-for="hour in 24" :key="hour - 1" class="hour-row flex h-[100px] border-t border-[#DEDAF4]/30 relative">
+    <div class="time-column w-12 flex flex-col items-end pr-3">
+      <span class="text-[10px] font-black text-[#757199]/60 mt-[-6px] bg-[#EFEEF7] px-1 z-10">
+        {{ String(hour - 1).padStart(2, '0') }}:00
+      </span>
+    </div>
+    <div class="absolute left-[48px] top-0 bottom-0 border-r border-dashed border-[#DEDAF4]"></div>
   </div>
-</template>
+
+  <div 
+    v-for="event in currentDayEvents" :key="event.id"
+    class="event-card absolute left-[65px] right-4 bg-white p-4 rounded-[24px] shadow-lg border-l-[6px] transition-all active:scale-[0.98] z-20 overflow-hidden"
+    :style="getEventStyle(event)"
+    @click="$emit('edit', event)"
+  >
+    <div class="flex items-center gap-2 mb-1">
+      <span class="bg-[#EFEEF7] text-[#6D5FB1] text-[10px] font-black px-2 py-0.5 rounded-full">
+        {{ event.startTime }} - {{ event.endTime }}
+      </span>
+    </div>
+    <h3 class="text-[#231F40] text-[14px] font-black truncate">{{ event.title }}</h3>
+    <p class="text-[#757199] text-[10px] flex items-center gap-1 opacity-80 mt-1">📍 {{ event.location }}</p>
+  </div>
+</main>
 
 <script setup lang="ts">
-import { useTripStore } from '../stores/tripStore'
-import type { TripEvent, EventCategory } from '../types'
+// ... 保留現有的 import
+import { computed } from 'vue'
 
-const tripStore = useTripStore()
-const emit = defineEmits(['edit', 'addNew', 'switch-trip'])
+const currentDayEvents = computed(() => {
+  return tripStore.events.filter(e => e.day === tripStore.currentDayIndex)
+})
 
-/**
- * 核心邏輯：根據「開始時間」的小時數來決定行程放在哪個格線
- */
-const getEventsByHour = (h: number) => {
-  return tripStore.events
-    .filter(e => {
-      // 1. 確保是同一天
-      const isSameDay = e.day === tripStore.currentDayIndex
-      // 2. 解析 startTime 的小時 (例如 "09:30" -> 9)
-      const startHour = parseInt(e.startTime.split(':')[0])
-      return isSameDay && startHour === h
-    })
-    .sort((a, b) => a.startTime.localeCompare(b.startTime))
-}
+// 💡 關鍵：計算卡片的絕對位置與高度
+const getEventStyle = (event: any) => {
+  const hourHeight = 100 // 必須與 hour-row 的 h-[100px] 一致
+  
+  const [startH, startM] = event.startTime.split(':').map(Number)
+  const [endH, endM] = event.endTime.split(':').map(Number)
+  
+  const top = (startH + startM / 60) * hourHeight
+  const durationMinutes = (endH * 60 + endM) - (startH * 60 + startM)
+  const height = (durationMinutes / 60) * hourHeight
 
-/**
- * 計算行程長度 (分鐘)
- */
-const getDuration = (start: string, end: string) => {
-  const [sH, sM] = start.split(':').map(Number)
-  const [eH, eM] = end.split(':').map(Number)
-  return (eH * 60 + eM) - (sH * 60 + sM)
-}
-
-const addNewAtHour = (h: number) => {
-  emit('addNew', h) 
-}
-
-/**
- * 顏色對齊 types.ts 定義
- */
-const getCategoryColor = (cat: EventCategory) => {
-  const colors: Record<EventCategory, string> = {
-    food: '#FFB067',      // 暖橘
-    spot: '#7FA9FB',      // 天藍
-    transport: '#8292D1', // 冷紫灰
-    shopping: '#E993D1',  // 粉紫
-    hotel: '#6BCB77',     // 翠綠
-    todo: '#DEDAF4'       // 淡紫
+  return {
+    top: `${top}px`,
+    height: `${Math.max(height, 60)}px`, // 最小高度 60px 避免文字擠壓
+    borderLeftColor: getCategoryColor(event.category)
   }
-  return colors[cat] || '#DEDAF4'
 }
 </script>
 
