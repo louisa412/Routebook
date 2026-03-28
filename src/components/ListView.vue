@@ -19,6 +19,45 @@
           +
         </button>
       </div>
+
+      <div class="category-manager mt-3 bg-white rounded-[18px] border border-[#6D5FB1]/5 p-3">
+        <div class="flex items-center justify-between mb-2">
+          <p class="text-[11px] font-black uppercase tracking-widest text-[#757199]">分類管理</p>
+          <button class="text-[11px] font-bold text-[#6D5FB1]" @click="isCategoryPanelOpen = !isCategoryPanelOpen">
+            {{ isCategoryPanelOpen ? '收合' : '展開' }}
+          </button>
+        </div>
+
+        <div v-if="isCategoryPanelOpen" class="space-y-2">
+          <div class="flex gap-2">
+            <input
+              v-model="newCategory"
+              class="flex-1 bg-[#F8F7FF] border border-[#E5E0FF] rounded-[10px] px-3 py-2 text-sm outline-none"
+              placeholder="新增分類..."
+              @keyup.enter="handleAddCategory"
+            />
+            <button class="mini-btn" @click="handleAddCategory">新增</button>
+          </div>
+
+          <div class="flex flex-wrap gap-2">
+            <div v-for="cat in categories" :key="cat" class="cat-chip">
+              <template v-if="editingCategoryName === cat">
+                <input
+                  v-model="editCategoryBuffer"
+                  class="chip-input"
+                  @keyup.enter="saveCategoryRename(cat)"
+                  @blur="saveCategoryRename(cat)"
+                />
+              </template>
+              <template v-else>
+                <span class="cat-text">{{ cat }}</span>
+                <button class="chip-icon" @click="startRenameCategory(cat)">✏️</button>
+                <button class="chip-icon" @click="deleteCategory(cat)">❌</button>
+              </template>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <div class="groups-container space-y-7">
@@ -53,16 +92,20 @@
               </svg>
             </button>
 
-            <div class="flex-1 min-w-0 flex items-center">
-              <input
-                v-if="editingId === item.id"
-                v-model="editBuffer"
-                @blur="saveEdit(item)"
-                @keyup.enter="saveEdit(item)"
-                @keyup.esc="cancelEdit"
-                v-focus
-                class="w-full bg-[#EFEEF7] border-none rounded-lg px-2 py-1 text-[#231F40] font-bold text-[14px] outline-none"
-              />
+            <div class="flex-1 min-w-0 flex items-center gap-2">
+              <template v-if="editingId === item.id">
+                <input
+                  v-model="editBuffer"
+                  @blur="saveEdit(item)"
+                  @keyup.enter="saveEdit(item)"
+                  @keyup.esc="cancelEdit"
+                  v-focus
+                  class="flex-1 bg-[#EFEEF7] border-none rounded-lg px-2 py-1 text-[#231F40] font-bold text-[14px] outline-none"
+                />
+                <select v-model="editCategoryBuffer" class="edit-cat-select">
+                  <option v-for="cat in categories" :key="cat" :value="cat">{{ cat }}</option>
+                </select>
+              </template>
               <button
                 v-else
                 type="button"
@@ -114,13 +157,18 @@ const props = defineProps<{
   categories: string[]
 }>()
 
-const emit = defineEmits(['add', 'delete', 'update'])
+const emit = defineEmits(['add', 'delete', 'update', 'addCategory', 'renameCategory', 'deleteCategory'])
 
 const newItemTitle = ref('')
 const selectedCategory = ref('')
 
 const editingId = ref<string | null>(null)
 const editBuffer = ref('')
+const editCategoryBuffer = ref('')
+
+const isCategoryPanelOpen = ref(false)
+const newCategory = ref('')
+const editingCategoryName = ref<string | null>(null)
 
 const vFocus = {
   mounted: (el: HTMLInputElement) => el.focus()
@@ -135,7 +183,7 @@ watch(() => props.categories, (newCats) => {
 const groupedItems = computed(() => {
   if (!props.items) return {}
   return props.items.reduce((acc, item) => {
-    const cat = item.category || '其他'
+    const cat = item.category || '未分類'
     if (!acc[cat]) acc[cat] = []
     acc[cat].push(item)
     return acc
@@ -148,18 +196,47 @@ const handleAddItem = () => {
   newItemTitle.value = ''
 }
 
+const handleAddCategory = () => {
+  const trimmed = newCategory.value.trim()
+  if (!trimmed) return
+  emit('addCategory', trimmed)
+  newCategory.value = ''
+}
+
+const startRenameCategory = (category: string) => {
+  editingCategoryName.value = category
+  editCategoryBuffer.value = category
+}
+
+const saveCategoryRename = (from: string) => {
+  if (editingCategoryName.value !== from) return
+  const to = editCategoryBuffer.value.trim()
+  editingCategoryName.value = null
+  if (!to || to === from) return
+  emit('renameCategory', { from, to })
+}
+
+const deleteCategory = (category: string) => {
+  emit('deleteCategory', category)
+}
+
 const startEdit = (item: ListItem) => {
   if (item.completed) return
   editingId.value = item.id
   editBuffer.value = item.title
+  editCategoryBuffer.value = item.category || (props.categories[0] || '未分類')
 }
 
 const saveEdit = (item: ListItem) => {
   if (editingId.value === null) return
   const trimmed = editBuffer.value.trim()
 
-  if (trimmed && trimmed !== item.title) {
-    emit('update', { ...item, title: trimmed })
+  if (trimmed && (trimmed !== item.title || editCategoryBuffer.value !== item.category)) {
+    emit('update', {
+      ...item,
+      title: trimmed,
+      category: editCategoryBuffer.value || '未分類'
+    })
   }
   editingId.value = null
 }
@@ -212,7 +289,8 @@ select, input {
 }
 
 .check-btn:active,
-.icon-btn:active {
+.icon-btn:active,
+.mini-btn:active {
   transform: scale(0.93);
 }
 
@@ -223,5 +301,57 @@ select, input {
 
 .row-completed {
   background: #FCFBFF;
+}
+
+.mini-btn {
+  background: #6D5FB1;
+  color: white;
+  border: none;
+  border-radius: 10px;
+  padding: 0 12px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.cat-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: #F8F7FF;
+  border: 1px solid #E7E3FA;
+  border-radius: 999px;
+  padding: 4px 8px;
+}
+
+.cat-text {
+  font-size: 12px;
+  color: #5F5A83;
+  font-weight: 700;
+}
+
+.chip-icon {
+  border: none;
+  background: transparent;
+  font-size: 11px;
+  padding: 0;
+  line-height: 1;
+}
+
+.chip-input {
+  border: none;
+  background: transparent;
+  font-size: 12px;
+  min-width: 72px;
+  outline: none;
+  color: #5F5A83;
+}
+
+.edit-cat-select {
+  border: 1px solid #E3DFFD;
+  border-radius: 8px;
+  padding: 4px 8px;
+  font-size: 12px;
+  color: #6D5FB1;
+  background: #fff;
 }
 </style>
