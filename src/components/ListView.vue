@@ -96,7 +96,6 @@
               <template v-if="editingId === item.id">
                 <input
                   v-model="editBuffer"
-                  @blur="saveEdit(item)"
                   @keyup.enter="saveEdit(item)"
                   @keyup.esc="cancelEdit"
                   v-focus
@@ -119,7 +118,15 @@
 
             <div class="flex items-center gap-1 flex-shrink-0">
               <button
-                v-if="editingId !== item.id"
+                v-if="editingId === item.id"
+                @click="saveEdit(item)"
+                class="icon-btn text-[#6D5FB1]"
+                aria-label="save item"
+              >
+                ✅
+              </button>
+              <button
+                v-else
                 @click="startEdit(item)"
                 class="icon-btn text-[#757199]"
                 aria-label="edit item"
