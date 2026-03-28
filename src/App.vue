@@ -49,7 +49,8 @@ const prepareAdd = (hour: number) => {
     day: tripStore.currentDayIndex, 
     images: [], 
     note: '',
-    isHotel: false 
+    isHotel: false,
+    locationSource: 'manual' 
   } as TripEvent
   isEditing.value = true
 }
