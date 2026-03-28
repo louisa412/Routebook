@@ -1,11 +1,11 @@
 <template>
   <div class="timeline-container bg-[#EFEEF7] min-h-screen">
     <nav class="sticky top-0 z-30 bg-[#EFEEF7]/90 backdrop-blur-md p-4 flex gap-3 overflow-x-auto no-scrollbar border-b border-[#6D5FB1]/5">
-      <button 
+      <button
         v-for="(day, index) in tripStore.days" :key="index"
         class="flex-shrink-0 w-[85px] h-[75px] rounded-[22px] border-none flex flex-col items-center justify-center transition-all duration-300"
-        :class="tripStore.currentDayIndex === index 
-          ? 'bg-[#6D5FB1] text-white shadow-lg shadow-[#6D5FB1]/20' 
+        :class="tripStore.currentDayIndex === index
+          ? 'bg-[#6D5FB1] text-white shadow-lg shadow-[#6D5FB1]/20'
           : 'bg-white text-[#757199]'"
         @click="tripStore.currentDayIndex = index"
       >
@@ -24,7 +24,7 @@
         <div class="absolute left-[48px] top-0 bottom-0 border-r border-dashed border-[#DEDAF4]"></div>
       </div>
 
-      <div 
+      <div
         v-for="event in currentDayEvents" :key="event.id"
         class="event-card absolute left-[65px] right-4 bg-white p-4 rounded-[24px] shadow-lg border-l-[6px] transition-all active:scale-[0.98] z-20 overflow-hidden"
         :style="getEventStyle(event)"
@@ -36,7 +36,13 @@
           </span>
         </div>
         <h3 class="text-[#231F40] text-[14px] font-black truncate">{{ event.title }}</h3>
-        <p class="text-[#757199] text-[10px] flex items-center gap-1 opacity-80 mt-1">📍 {{ event.location }}</p>
+        <button
+          type="button"
+          class="text-[#757199] text-[10px] flex items-center gap-1 opacity-80 mt-1 underline-offset-2 hover:underline"
+          @click.stop="openLocationInMaps(event)"
+        >
+          📍 {{ tripStore.getResolvedEventLocation(event) }}
+        </button>
       </div>
     </main>
   </div>
@@ -45,21 +51,28 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useTripStore } from '../stores/tripStore'
-import type { EventCategory } from '../types'
+import type { EventCategory, TripEvent } from '../types'
+import { openGoogleMaps } from '../utils/maps'
 
 const tripStore = useTripStore()
-const emit = defineEmits(['edit', 'addNew'])
+defineEmits(['edit', 'addNew'])
 
 const currentDayEvents = computed(() => {
   return tripStore.events.filter(e => e.day === tripStore.currentDayIndex)
 })
 
-const getEventStyle = (event: any) => {
-  const hourHeight = 100 
+const openLocationInMaps = (event: TripEvent) => {
+  const resolvedLocation = tripStore.getResolvedEventLocation(event)
+  if (!resolvedLocation) return
+  openGoogleMaps(resolvedLocation)
+}
+
+const getEventStyle = (event: TripEvent) => {
+  const hourHeight = 100
   const [startH, startM] = event.startTime.split(':').map(Number)
   const [endH, endM] = event.endTime.split(':').map(Number)
-  
-  const top = (startH + startM / 60) * hourHeight + 24 // 24 是 main 的 pt-6 偏移量
+
+  const top = (startH + startM / 60) * hourHeight + 24
   const durationMinutes = (endH * 60 + endM) - (startH * 60 + startM)
   const height = (durationMinutes / 60) * hourHeight
 
@@ -72,7 +85,12 @@ const getEventStyle = (event: any) => {
 
 const getCategoryColor = (cat: EventCategory) => {
   const colors: Record<string, string> = {
-    food: '#FFB067', spot: '#7FA9FB', transport: '#8292D1', shopping: '#E993D1', hotel: '#6BCB77', todo: '#DEDAF4'
+    food: '#FFB067',
+    spot: '#7FA9FB',
+    transport: '#8292D1',
+    shopping: '#E993D1',
+    hotel: '#6BCB77',
+    todo: '#DEDAF4'
   }
   return colors[cat] || '#DEDAF4'
 }
