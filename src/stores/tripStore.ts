@@ -9,6 +9,7 @@ import { resolveEventLocation } from '../utils/location'
 
 const DEFAULT_TODO_CATEGORIES = ['行前', '證件', '交通', '行李']
 const DEFAULT_SHOPPING_CATEGORIES = ['藥妝', '伴手禮', '服飾', '零食', '電器']
+const DEFAULT_PACKING_CATEGORIES = ['證件 / 金流', '衣物', '盥洗 / 保養', '藥品', '電子用品', '機上隨身', '其他']
 
 const normalizeEvent = (event: Partial<TripEvent>, fallbackId: string): TripEvent => ({
   id: event.id || fallbackId,
@@ -80,8 +81,10 @@ export const useTripStore = defineStore('trip', () => {
 
   const todos = ref<ListItem[]>([])
   const shoppingList = ref<ListItem[]>([])
+  const packingList = ref<ListItem[]>([])
   const todoCategories = ref<string[]>([...DEFAULT_TODO_CATEGORIES])
   const shoppingCategories = ref<string[]>([...DEFAULT_SHOPPING_CATEGORIES])
+  const packingCategories = ref<string[]>([...DEFAULT_PACKING_CATEGORIES])
   const totalBudget = ref(50000)
 
   const categorizedShopping = computed(() => {
@@ -95,6 +98,15 @@ export const useTripStore = defineStore('trip', () => {
 
   const categorizedTodos = computed(() => {
     return todos.value.reduce((acc, item) => {
+      const cat = item.category || '未分類'
+      if (!acc[cat]) acc[cat] = []
+      acc[cat].push(item)
+      return acc
+    }, {} as Record<string, ListItem[]>)
+  })
+
+  const categorizedPacking = computed(() => {
+    return packingList.value.reduce((acc, item) => {
       const cat = item.category || '未分類'
       if (!acc[cat]) acc[cat] = []
       acc[cat].push(item)
@@ -133,8 +145,10 @@ export const useTripStore = defineStore('trip', () => {
         events: events.value,
         todos: todos.value,
         shoppingList: shoppingList.value,
+        packingList: packingList.value,
         todoCategories: todoCategories.value,
         shoppingCategories: shoppingCategories.value,
+        packingCategories: packingCategories.value,
         lodging: lodging.value,
         totalBudget: totalBudget.value,
         lastUpdated: new Date()
@@ -179,6 +193,9 @@ export const useTripStore = defineStore('trip', () => {
           if (Array.isArray(data.shoppingList)) {
             shoppingList.value = data.shoppingList.map((item: any, index: number) => normalizeListItem(item, `shop-${Date.now()}-${index}`))
           }
+          if (Array.isArray(data.packingList)) {
+            packingList.value = data.packingList.map((item: any, index: number) => normalizeListItem(item, `pack-${Date.now()}-${index}`))
+          }
 
           const loadedTodoCategories = Array.isArray(data.todoCategories) && data.todoCategories.length > 0
             ? data.todoCategories
@@ -189,6 +206,11 @@ export const useTripStore = defineStore('trip', () => {
             ? data.shoppingCategories
             : DEFAULT_SHOPPING_CATEGORIES
           shoppingCategories.value = buildCategoryList(loadedShoppingCategories, shoppingList.value)
+
+          const loadedPackingCategories = Array.isArray(data.packingCategories) && data.packingCategories.length > 0
+            ? data.packingCategories
+            : DEFAULT_PACKING_CATEGORIES
+          packingCategories.value = buildCategoryList(loadedPackingCategories, packingList.value)
         }
 
         isInitialized.value = true
@@ -284,6 +306,32 @@ export const useTripStore = defineStore('trip', () => {
     saveToCloud()
   }
 
+  const addPackingCategory = (name: string) => {
+    const trimmed = name.trim()
+    if (!trimmed || packingCategories.value.includes(trimmed)) return
+    packingCategories.value.push(trimmed)
+    saveToCloud()
+  }
+
+  const renamePackingCategory = (from: string, to: string) => {
+    const trimmed = to.trim()
+    if (!trimmed || from === trimmed) return
+    if (packingCategories.value.includes(trimmed)) return
+
+    packingCategories.value = packingCategories.value.map((cat) => (cat === from ? trimmed : cat))
+    packingList.value = packingList.value.map((item) => (item.category === from ? { ...item, category: trimmed } : item))
+    saveToCloud()
+  }
+
+  const deletePackingCategory = (name: string) => {
+    packingCategories.value = packingCategories.value.filter((cat) => cat !== name)
+    if (!packingCategories.value.includes('未分類')) {
+      packingCategories.value.push('未分類')
+    }
+    packingList.value = packingList.value.map((item) => (item.category === name ? { ...item, category: '未分類' } : item))
+    saveToCloud()
+  }
+
   const addTodo = (title: string, category: string) => {
     const normalizedCategory = category || '未分類'
     if (!todoCategories.value.includes(normalizedCategory)) {
@@ -336,6 +384,32 @@ export const useTripStore = defineStore('trip', () => {
     saveToCloud()
   }
 
+  const addPackingItem = (title: string, category: string) => {
+    const normalizedCategory = category || '未分類'
+    if (!packingCategories.value.includes(normalizedCategory)) {
+      packingCategories.value.push(normalizedCategory)
+    }
+    packingList.value.push({ id: `pack-${Date.now()}`, title, category: normalizedCategory, completed: false })
+    saveToCloud()
+  }
+
+  const updatePackingItem = (updated: ListItem) => {
+    const index = packingList.value.findIndex((item) => item.id === updated.id)
+    if (index === -1) return
+
+    const normalizedCategory = updated.category || '未分類'
+    if (!packingCategories.value.includes(normalizedCategory)) {
+      packingCategories.value.push(normalizedCategory)
+    }
+    packingList.value[index] = normalizeListItem({ ...updated, category: normalizedCategory }, updated.id)
+    saveToCloud()
+  }
+
+  const deletePackingItem = (id: string) => {
+    packingList.value = packingList.value.filter((item) => item.id !== id)
+    saveToCloud()
+  }
+
   return {
     tripName,
     startDate,
@@ -365,6 +439,15 @@ export const useTripStore = defineStore('trip', () => {
     addShoppingCategory,
     renameShoppingCategory,
     deleteShoppingCategory,
+    packingList,
+    packingCategories,
+    categorizedPacking,
+    addPackingItem,
+    updatePackingItem,
+    deletePackingItem,
+    addPackingCategory,
+    renamePackingCategory,
+    deletePackingCategory,
     totalBudget,
     totalSpent,
     isInitialized,
