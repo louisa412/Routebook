@@ -194,6 +194,17 @@ export const useTripStore = defineStore('trip', () => {
     saveToCloud()
   }
 
+  const updateLodging = (day: number, payload: { name: string; address: string }) => {
+    lodging.value = {
+      ...lodging.value,
+      [day]: {
+        name: payload.name || '',
+        address: payload.address || ''
+      }
+    }
+    saveToCloud()
+  }
+
   const addTodo = (title: string, category: string) => {
     todos.value.push({ id: `todo-${Date.now()}`, title, category, completed: false })
     saveToCloud()
@@ -239,6 +250,7 @@ export const useTripStore = defineStore('trip', () => {
     addEvent,
     updateEvent,
     deleteEvent,
+    updateLodging,
     initAuth,
     saveToCloud,
     getResolvedEventLocation
