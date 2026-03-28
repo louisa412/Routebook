@@ -11,20 +11,39 @@ const DEFAULT_TODO_CATEGORIES = ['行前', '證件', '交通', '行李']
 const DEFAULT_SHOPPING_CATEGORIES = ['藥妝', '伴手禮', '服飾', '零食', '電器']
 const DEFAULT_PACKING_CATEGORIES = ['證件 / 金流', '衣物', '盥洗 / 保養', '藥品', '電子用品', '機上隨身', '其他']
 
+const sanitizeForFirestore = (value: unknown): any => {
+  if (value === undefined) return null
+  if (value === null) return null
+  if (Array.isArray(value)) {
+    return value.map((item) => sanitizeForFirestore(item))
+  }
+  if (value instanceof Date) return value
+  if (typeof value === 'object') {
+    const sanitized: Record<string, unknown> = {}
+    Object.entries(value as Record<string, unknown>).forEach(([key, nestedValue]) => {
+      if (nestedValue !== undefined) {
+        sanitized[key] = sanitizeForFirestore(nestedValue)
+      }
+    })
+    return sanitized
+  }
+  return value
+}
+
 const normalizeEvent = (event: Partial<TripEvent>, fallbackId: string): TripEvent => ({
   id: event.id || fallbackId,
   title: event.title || '',
   startTime: event.startTime || '00:00',
   endTime: event.endTime || '01:00',
   location: event.location || '',
-  address: event.address,
+  address: event.address || '',
   category: event.category || 'spot',
   note: event.note || '',
   price: Number(event.price) || 0,
   day: typeof event.day === 'number' ? event.day : 0,
   isHotel: !!(event.isHotel || event.category === 'hotel' || event.title?.includes('飯店') || event.title?.includes('晚安')),
   images: Array.isArray(event.images) ? event.images : [],
-  time: event.time,
+  time: event.time || '',
   locationSource: event.locationSource === 'lodging' ? 'lodging' : 'manual'
 })
 
@@ -34,6 +53,22 @@ const normalizeListItem = (item: Partial<ListItem>, fallbackId: string): ListIte
   category: item.category || '未分類',
   completed: !!item.completed
 })
+
+const normalizeLodging = (raw: unknown) => {
+  const safe: Record<number, { name: string; address: string }> = {}
+  if (!raw || typeof raw !== 'object') return safe
+
+  Object.entries(raw as Record<string, any>).forEach(([key, value]) => {
+    const day = Number(key)
+    if (Number.isNaN(day)) return
+    safe[day] = {
+      name: value?.name || '',
+      address: value?.address || ''
+    }
+  })
+
+  return safe
+}
 
 const buildCategoryList = (baseCategories: string[], items: ListItem[]) => {
   const merged = [...baseCategories]
@@ -137,23 +172,24 @@ export const useTripStore = defineStore('trip', () => {
     syncStatus.value = 'syncing'
     lastSyncError.value = ''
 
-    try {
-      await setDoc(doc(db, 'users', user.uid), {
-        tripName: tripName.value,
-        startDate: startDate.value,
-        totalDays: totalDays.value,
-        events: events.value,
-        todos: todos.value,
-        shoppingList: shoppingList.value,
-        packingList: packingList.value,
-        todoCategories: todoCategories.value,
-        shoppingCategories: shoppingCategories.value,
-        packingCategories: packingCategories.value,
-        lodging: lodging.value,
-        totalBudget: totalBudget.value,
-        lastUpdated: new Date()
-      }, { merge: true })
+    const payload = sanitizeForFirestore({
+      tripName: tripName.value || '',
+      startDate: startDate.value || '',
+      totalDays: Number(totalDays.value) || 0,
+      events: events.value.map((event) => normalizeEvent(event, event.id || `event-${Date.now()}`)),
+      todos: todos.value.map((item) => normalizeListItem(item, item.id || `todo-${Date.now()}`)),
+      shoppingList: shoppingList.value.map((item) => normalizeListItem(item, item.id || `shop-${Date.now()}`)),
+      packingList: packingList.value.map((item) => normalizeListItem(item, item.id || `pack-${Date.now()}`)),
+      todoCategories: Array.isArray(todoCategories.value) ? todoCategories.value : [],
+      shoppingCategories: Array.isArray(shoppingCategories.value) ? shoppingCategories.value : [],
+      packingCategories: Array.isArray(packingCategories.value) ? packingCategories.value : [],
+      lodging: normalizeLodging(lodging.value),
+      totalBudget: Number(totalBudget.value) || 0,
+      lastUpdated: new Date()
+    })
 
+    try {
+      await setDoc(doc(db, 'users', user.uid), payload, { merge: true })
       syncStatus.value = 'synced'
     } catch (error) {
       syncStatus.value = 'sync-failed'
@@ -184,8 +220,8 @@ export const useTripStore = defineStore('trip', () => {
           if (Array.isArray(data.events)) {
             events.value = data.events.map((event: any, index: number) => normalizeEvent(event, `cloud-event-${Date.now()}-${index}`))
           }
-          if (data.lodging) lodging.value = data.lodging
-          if (data.totalBudget) totalBudget.value = data.totalBudget
+          if (data.lodging) lodging.value = normalizeLodging(data.lodging)
+          if (data.totalBudget) totalBudget.value = Number(data.totalBudget) || 0
 
           if (Array.isArray(data.todos)) {
             todos.value = data.todos.map((item: any, index: number) => normalizeListItem(item, `todo-${Date.now()}-${index}`))
