@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { auth } from '../firebase'
 import { GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged, type User } from 'firebase/auth'
 import { useTripStore } from '../stores/tripStore'
@@ -13,13 +13,23 @@ onMounted(() => {
   })
 })
 
+const syncStatusText = computed(() => {
+  const textMap = {
+    'local-only': '僅本機（未登入或離線）',
+    syncing: '同步中…',
+    synced: '已同步',
+    'sync-failed': '同步失敗（仍保留本機資料）'
+  }
+  return textMap[tripStore.syncStatus]
+})
+
 const handleLogin = async () => {
   const provider = new GoogleAuthProvider()
   try {
     await signInWithPopup(auth, provider)
-    tripStore.saveToCloud() // 登入後立即備份一次
+    tripStore.saveToCloud()
   } catch (error) {
-    console.error("登入失敗", error)
+    console.error('登入失敗', error)
   }
 }
 
@@ -32,11 +42,12 @@ const handleLogout = () => signOut(auth)
       <img :src="user?.photoURL || 'https://via.placeholder.com/80'" class="avatar" />
       <h2 class="user-name">{{ user?.displayName || '旅行者' }}</h2>
       <p class="user-email">{{ user?.email }}</p>
-      
+
       <div class="sync-status">
-        <span class="status-dot" :class="{ active: tripStore.isSyncing }"></span>
-        {{ tripStore.isSyncing ? '同步中...' : '雲端已就緒' }}
+        <span class="status-dot" :class="tripStore.syncStatus"></span>
+        {{ syncStatusText }}
       </div>
+      <p v-if="tripStore.lastSyncError" class="sync-error">{{ tripStore.lastSyncError }}</p>
       <button @click="handleLogout" class="logout-btn">登出帳號</button>
     </div>
 
@@ -47,20 +58,28 @@ const handleLogout = () => signOut(auth)
       <button @click="handleLogin" class="login-btn">
         使用 Google 登入
       </button>
+      <div class="sync-status mt-3">
+        <span class="status-dot" :class="tripStore.syncStatus"></span>
+        {{ syncStatusText }}
+      </div>
     </div>
   </div>
 </template>
 
 <style scoped>
 .profile-view { padding: 20px; }
-.profile-card, .login-card { 
+.profile-card, .login-card {
   background: white; padding: 40px 20px; border-radius: 24px; text-align: center;
   box-shadow: 0 10px 30px rgba(109,95,177,0.05);
 }
 .avatar { width: 80px; height: 80px; border-radius: 50%; border: 3px solid var(--rt-secondary); margin-bottom: 15px; }
 .sync-status { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--rt-muted); background: var(--rt-bg); padding: 8px 16px; border-radius: 20px; }
 .status-dot { width: 8px; height: 8px; background: #ccc; border-radius: 50%; }
-.status-dot.active { background: #6D5FB1; box-shadow: 0 0 8px #6D5FB1; }
+.status-dot.syncing { background: #6D5FB1; box-shadow: 0 0 8px #6D5FB1; }
+.status-dot.synced { background: #2fad4a; }
+.status-dot.local-only { background: #a0a0a0; }
+.status-dot.sync-failed { background: #ff4d4f; }
+.sync-error { margin-top: 8px; color: #ff4d4f; font-size: 12px; }
 .login-btn { background: #6D5FB1; color: white; border: none; padding: 12px 30px; border-radius: 12px; font-weight: 700; margin-top: 20px; width: 100%; }
 .logout-btn { background: transparent; color: #ff4d4f; border: 1px solid #ff4d4f; padding: 10px; border-radius: 12px; margin-top: 30px; width: 100%; }
 </style>
