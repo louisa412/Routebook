@@ -16,6 +16,7 @@ const tabs = [
   { id: 'timeline', name: '行程' },
   { id: 'todo', name: '待辦' },
   { id: 'shop', name: '購物' },
+  { id: 'packing', name: '行李' },
   { id: 'budget', name: '預算' },
   { id: 'profile', name: '個人' }
 ]
@@ -59,6 +60,10 @@ const handleTodoUpdate = (item: ListItem) => {
 
 const handleShopUpdate = (item: ListItem) => {
   tripStore.updateShoppingItem(item)
+}
+
+const handlePackingUpdate = (item: ListItem) => {
+  tripStore.updatePackingItem(item)
 }
 </script>
 
@@ -114,17 +119,31 @@ const handleShopUpdate = (item: ListItem) => {
         @deleteCategory="(name: string) => tripStore.deleteShoppingCategory(name)"
       />
 
+      <ListView
+        v-if="currentTab === 'packing'"
+        title="行李清單"
+        placeholder="還要帶什麼..."
+        :items="tripStore.packingList"
+        :categories="tripStore.packingCategories"
+        @add="(data: any) => tripStore.addPackingItem(data.title, data.category)"
+        @update="handlePackingUpdate"
+        @delete="(id: string) => tripStore.deletePackingItem(id)"
+        @addCategory="(name: string) => tripStore.addPackingCategory(name)"
+        @renameCategory="({ from, to }: { from: string; to: string }) => tripStore.renamePackingCategory(from, to)"
+        @deleteCategory="(name: string) => tripStore.deletePackingCategory(name)"
+      />
+
       <BudgetView v-if="currentTab === 'budget'" />
       <ProfileView v-if="currentTab === 'profile'" />
     </main>
 
     <nav class="fixed bottom-8 left-0 right-0 px-6 z-40">
-      <div class="max-w-md mx-auto h-[72px] bg-white/90 backdrop-blur-2xl rounded-[28px] shadow-xl shadow-[#6D5FB1]/10 border border-white flex items-center justify-around px-2">
+      <div class="max-w-md mx-auto h-[72px] bg-white/90 backdrop-blur-2xl rounded-[28px] shadow-xl shadow-[#6D5FB1]/10 border border-white flex items-center justify-around px-2 overflow-x-auto no-scrollbar">
         <button
           v-for="tab in tabs"
           :key="tab.id"
           @click="currentTab = tab.id"
-          class="flex flex-col items-center justify-center w-14 h-14 rounded-[20px] transition-all duration-300"
+          class="flex flex-col items-center justify-center w-14 h-14 rounded-[20px] transition-all duration-300 flex-shrink-0"
           :class="currentTab === tab.id ? 'bg-[#6D5FB1] text-white shadow-lg' : 'text-[#757199]'"
         >
           <span class="text-[11px] font-black">{{ tab.name }}</span>
@@ -160,4 +179,7 @@ body {
 ::-webkit-scrollbar {
   display: none;
 }
+
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 </style>
