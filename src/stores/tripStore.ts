@@ -7,6 +7,9 @@ import { doc, onSnapshot, setDoc } from 'firebase/firestore'
 import { onAuthStateChanged } from 'firebase/auth'
 import { resolveEventLocation } from '../utils/location'
 
+const DEFAULT_TODO_CATEGORIES = ['行前', '證件', '交通', '行李']
+const DEFAULT_SHOPPING_CATEGORIES = ['藥妝', '伴手禮', '服飾', '零食', '電器']
+
 const normalizeEvent = (event: Partial<TripEvent>, fallbackId: string): TripEvent => ({
   id: event.id || fallbackId,
   title: event.title || '',
@@ -23,6 +26,24 @@ const normalizeEvent = (event: Partial<TripEvent>, fallbackId: string): TripEven
   time: event.time,
   locationSource: event.locationSource === 'lodging' ? 'lodging' : 'manual'
 })
+
+const normalizeListItem = (item: Partial<ListItem>, fallbackId: string): ListItem => ({
+  id: item.id || fallbackId,
+  title: item.title || (item as any).name || '未命名項目',
+  category: item.category || '未分類',
+  completed: !!item.completed
+})
+
+const buildCategoryList = (baseCategories: string[], items: ListItem[]) => {
+  const merged = [...baseCategories]
+  items.forEach((item) => {
+    const cat = item.category || '未分類'
+    if (!merged.includes(cat)) {
+      merged.push(cat)
+    }
+  })
+  return merged
+}
 
 export const useTripStore = defineStore('trip', () => {
   const isInitialized = ref(false)
@@ -59,6 +80,8 @@ export const useTripStore = defineStore('trip', () => {
 
   const todos = ref<ListItem[]>([])
   const shoppingList = ref<ListItem[]>([])
+  const todoCategories = ref<string[]>([...DEFAULT_TODO_CATEGORIES])
+  const shoppingCategories = ref<string[]>([...DEFAULT_SHOPPING_CATEGORIES])
   const totalBudget = ref(50000)
 
   const categorizedShopping = computed(() => {
@@ -110,6 +133,8 @@ export const useTripStore = defineStore('trip', () => {
         events: events.value,
         todos: todos.value,
         shoppingList: shoppingList.value,
+        todoCategories: todoCategories.value,
+        shoppingCategories: shoppingCategories.value,
         lodging: lodging.value,
         totalBudget: totalBudget.value,
         lastUpdated: new Date()
@@ -148,20 +173,22 @@ export const useTripStore = defineStore('trip', () => {
           if (data.lodging) lodging.value = data.lodging
           if (data.totalBudget) totalBudget.value = data.totalBudget
 
-          if (data.todos) {
-            todos.value = data.todos.map((item: any) => ({
-              ...item,
-              title: item.title || item.name || '未命名項目',
-              category: item.category || '其他'
-            }))
+          if (Array.isArray(data.todos)) {
+            todos.value = data.todos.map((item: any, index: number) => normalizeListItem(item, `todo-${Date.now()}-${index}`))
           }
-          if (data.shoppingList) {
-            shoppingList.value = data.shoppingList.map((item: any) => ({
-              ...item,
-              title: item.title || item.name || '未命名項目',
-              category: item.category || '其他'
-            }))
+          if (Array.isArray(data.shoppingList)) {
+            shoppingList.value = data.shoppingList.map((item: any, index: number) => normalizeListItem(item, `shop-${Date.now()}-${index}`))
           }
+
+          const loadedTodoCategories = Array.isArray(data.todoCategories) && data.todoCategories.length > 0
+            ? data.todoCategories
+            : DEFAULT_TODO_CATEGORIES
+          todoCategories.value = buildCategoryList(loadedTodoCategories, todos.value)
+
+          const loadedShoppingCategories = Array.isArray(data.shoppingCategories) && data.shoppingCategories.length > 0
+            ? data.shoppingCategories
+            : DEFAULT_SHOPPING_CATEGORIES
+          shoppingCategories.value = buildCategoryList(loadedShoppingCategories, shoppingList.value)
         }
 
         isInitialized.value = true
@@ -205,8 +232,76 @@ export const useTripStore = defineStore('trip', () => {
     saveToCloud()
   }
 
+  const addTodoCategory = (name: string) => {
+    const trimmed = name.trim()
+    if (!trimmed || todoCategories.value.includes(trimmed)) return
+    todoCategories.value.push(trimmed)
+    saveToCloud()
+  }
+
+  const renameTodoCategory = (from: string, to: string) => {
+    const trimmed = to.trim()
+    if (!trimmed || from === trimmed) return
+    if (todoCategories.value.includes(trimmed)) return
+
+    todoCategories.value = todoCategories.value.map((cat) => (cat === from ? trimmed : cat))
+    todos.value = todos.value.map((item) => (item.category === from ? { ...item, category: trimmed } : item))
+    saveToCloud()
+  }
+
+  const deleteTodoCategory = (name: string) => {
+    todoCategories.value = todoCategories.value.filter((cat) => cat !== name)
+    if (!todoCategories.value.includes('未分類')) {
+      todoCategories.value.push('未分類')
+    }
+    todos.value = todos.value.map((item) => (item.category === name ? { ...item, category: '未分類' } : item))
+    saveToCloud()
+  }
+
+  const addShoppingCategory = (name: string) => {
+    const trimmed = name.trim()
+    if (!trimmed || shoppingCategories.value.includes(trimmed)) return
+    shoppingCategories.value.push(trimmed)
+    saveToCloud()
+  }
+
+  const renameShoppingCategory = (from: string, to: string) => {
+    const trimmed = to.trim()
+    if (!trimmed || from === trimmed) return
+    if (shoppingCategories.value.includes(trimmed)) return
+
+    shoppingCategories.value = shoppingCategories.value.map((cat) => (cat === from ? trimmed : cat))
+    shoppingList.value = shoppingList.value.map((item) => (item.category === from ? { ...item, category: trimmed } : item))
+    saveToCloud()
+  }
+
+  const deleteShoppingCategory = (name: string) => {
+    shoppingCategories.value = shoppingCategories.value.filter((cat) => cat !== name)
+    if (!shoppingCategories.value.includes('未分類')) {
+      shoppingCategories.value.push('未分類')
+    }
+    shoppingList.value = shoppingList.value.map((item) => (item.category === name ? { ...item, category: '未分類' } : item))
+    saveToCloud()
+  }
+
   const addTodo = (title: string, category: string) => {
-    todos.value.push({ id: `todo-${Date.now()}`, title, category, completed: false })
+    const normalizedCategory = category || '未分類'
+    if (!todoCategories.value.includes(normalizedCategory)) {
+      todoCategories.value.push(normalizedCategory)
+    }
+    todos.value.push({ id: `todo-${Date.now()}`, title, category: normalizedCategory, completed: false })
+    saveToCloud()
+  }
+
+  const updateTodo = (updated: ListItem) => {
+    const index = todos.value.findIndex((item) => item.id === updated.id)
+    if (index === -1) return
+
+    const normalizedCategory = updated.category || '未分類'
+    if (!todoCategories.value.includes(normalizedCategory)) {
+      todoCategories.value.push(normalizedCategory)
+    }
+    todos.value[index] = normalizeListItem({ ...updated, category: normalizedCategory }, updated.id)
     saveToCloud()
   }
 
@@ -216,7 +311,23 @@ export const useTripStore = defineStore('trip', () => {
   }
 
   const addShoppingItem = (title: string, category: string) => {
-    shoppingList.value.push({ id: `shop-${Date.now()}`, title, category, completed: false })
+    const normalizedCategory = category || '未分類'
+    if (!shoppingCategories.value.includes(normalizedCategory)) {
+      shoppingCategories.value.push(normalizedCategory)
+    }
+    shoppingList.value.push({ id: `shop-${Date.now()}`, title, category: normalizedCategory, completed: false })
+    saveToCloud()
+  }
+
+  const updateShoppingItem = (updated: ListItem) => {
+    const index = shoppingList.value.findIndex((item) => item.id === updated.id)
+    if (index === -1) return
+
+    const normalizedCategory = updated.category || '未分類'
+    if (!shoppingCategories.value.includes(normalizedCategory)) {
+      shoppingCategories.value.push(normalizedCategory)
+    }
+    shoppingList.value[index] = normalizeListItem({ ...updated, category: normalizedCategory }, updated.id)
     saveToCloud()
   }
 
@@ -237,13 +348,23 @@ export const useTripStore = defineStore('trip', () => {
     lastSyncError,
     lodging,
     todos,
+    todoCategories,
     categorizedTodos,
     addTodo,
+    updateTodo,
     deleteTodo,
+    addTodoCategory,
+    renameTodoCategory,
+    deleteTodoCategory,
     shoppingList,
+    shoppingCategories,
     categorizedShopping,
     addShoppingItem,
+    updateShoppingItem,
     deleteShoppingItem,
+    addShoppingCategory,
+    renameShoppingCategory,
+    deleteShoppingCategory,
     totalBudget,
     totalSpent,
     isInitialized,
