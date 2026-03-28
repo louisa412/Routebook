@@ -26,15 +26,42 @@
             </div>
           </div>
 
+          <div>
+            <label class="text-[#757199] text-[10px] font-bold uppercase mb-2 block">地點來源</label>
+            <div class="grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                class="py-3 px-3 rounded-[14px] text-xs font-bold border transition-colors"
+                :class="editForm.locationSource === 'manual' ? 'bg-[#6D5FB1] text-white border-[#6D5FB1]' : 'bg-white text-[#757199] border-transparent'"
+                @click="editForm.locationSource = 'manual'"
+              >
+                手動輸入地點
+              </button>
+              <button
+                type="button"
+                class="py-3 px-3 rounded-[14px] text-xs font-bold border transition-colors"
+                :class="editForm.locationSource === 'lodging' ? 'bg-[#6D5FB1] text-white border-[#6D5FB1]' : 'bg-white text-[#757199] border-transparent'"
+                @click="editForm.locationSource = 'lodging'"
+              >
+                使用當日住宿
+              </button>
+            </div>
+          </div>
+
           <div class="grid grid-cols-2 gap-4">
             <div>
               <label class="text-[#757199] text-[10px] font-bold uppercase mb-2 block">地點</label>
-              <input 
-                v-model="editForm.location" 
-                type="text" 
-                :placeholder="editForm.isHotel ? '自動連動住宿' : '輸入地點'"
-                class="w-full bg-white border-none rounded-[18px] p-3 text-[#231F40] text-sm shadow-sm outline-none"
+              <input
+                v-model="editForm.location"
+                type="text"
+                :disabled="editForm.locationSource === 'lodging'"
+                :placeholder="editForm.locationSource === 'lodging' ? '已使用當日住宿' : '輸入地點'"
+                class="w-full border-none rounded-[18px] p-3 text-[#231F40] text-sm shadow-sm outline-none"
+                :class="editForm.locationSource === 'lodging' ? 'bg-[#F8F7FF] text-[#757199]/70 cursor-not-allowed' : 'bg-white'"
               />
+              <p v-if="editForm.locationSource === 'lodging'" class="text-[11px] text-[#757199] mt-2 leading-relaxed">
+                住宿預覽：{{ lodgingPreview }}
+              </p>
             </div>
             <div>
               <label class="text-[#757199] text-[10px] font-bold uppercase mb-2 block">預算 (JPY)</label>
@@ -46,7 +73,7 @@
             <label class="text-[#757199] text-[10px] font-bold uppercase mb-2 block">行程照片附件</label>
             <div class="flex flex-wrap gap-3">
               <div v-for="(url, idx) in editForm.images" :key="idx" class="relative group">
-                <div 
+                <div
                   class="w-20 h-20 rounded-[20px] bg-cover bg-center border-2 border-white shadow-sm"
                   :style="{ backgroundImage: `url(${url})` }"
                 ></div>
@@ -81,7 +108,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useTripStore } from '../stores/tripStore'
 import type { TripEvent } from '../types'
 import { storage } from '../firebase'
@@ -98,15 +125,21 @@ const tripStore = useTripStore()
 const editForm = ref<TripEvent>({} as TripEvent)
 const isUploading = ref(false)
 
-// 監聽傳入的事件進行初始化
+const lodgingPreview = computed(() => {
+  const hotel = tripStore.lodging[editForm.value.day]
+  if (!hotel) return '當日尚未設定住宿'
+  return [hotel.name, hotel.address].filter(Boolean).join(' · ')
+})
+
 watch(() => props.event, (newVal) => {
   if (newVal) {
-    // 深拷貝，確保在點擊「儲存」前不會影響到全域資料
-    editForm.value = JSON.parse(JSON.stringify(newVal))
+    editForm.value = {
+      ...JSON.parse(JSON.stringify(newVal)),
+      locationSource: newVal.locationSource === 'lodging' ? 'lodging' : 'manual'
+    }
   }
 }, { immediate: true })
 
-// 處理 Firebase 照片上傳
 const handleFileUpload = async (e: Event) => {
   const file = (e.target as HTMLInputElement).files?.[0]
   if (!file) return
@@ -115,7 +148,7 @@ const handleFileUpload = async (e: Event) => {
   try {
     const fileName = `${Date.now()}_${file.name}`
     const fileRef = storageRef(storage, `trips/${tripStore.tripName}/${editForm.value.id}/${fileName}`)
-    
+
     const snapshot = await uploadBytes(fileRef, file)
     const downloadURL = await getDownloadURL(snapshot.ref)
 
@@ -134,14 +167,15 @@ const removeImage = (idx: number) => {
 }
 
 const handleSave = () => {
-  // 檢查時間邏輯 (J 人嚴選：結束時間不能早於開始時間)
   if (editForm.value.endTime <= editForm.value.startTime) {
     alert('J 人提示：結束時間必須晚於開始時間喔！')
     return
   }
 
-  // 使用 Store 內建方法更新，會自動觸發 Firebase 同步
-  tripStore.updateEvent({ ...editForm.value })
+  tripStore.updateEvent({
+    ...editForm.value,
+    locationSource: editForm.value.locationSource === 'lodging' ? 'lodging' : 'manual'
+  })
   emit('close')
 }
 </script>
@@ -154,7 +188,6 @@ const handleSave = () => {
   from { transform: translateY(100%); }
   to { transform: translateY(0); }
 }
-/* 讓 iOS 上的 time input 更好看 */
 input[type="time"] {
   -webkit-appearance: none;
   min-height: 44px;
