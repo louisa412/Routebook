@@ -1,15 +1,14 @@
 /**
  * Routebook 核心型別定義
  * 更新日期：2026-03-27
- * 變更重點：補齊缺失的 TripDay 與 ListItem 定義，修正 Price 必填項
  */
 
 // 1. 行程分類
 export type EventCategory = 'transport' | 'food' | 'spot' | 'hotel' | 'shopping' | 'todo';
+export type LocationSource = 'manual' | 'lodging';
 
 /**
  * 2. 完整行程事件 (用於 Store 與 Firestore)
- * 為了計算安全，price 與 day 設為必填
  */
 export interface TripEvent {
   id: string;
@@ -20,11 +19,12 @@ export interface TripEvent {
   address?: string;
   category: EventCategory;
   note?: string;
-  price: number;     // 對齊新版資料結構
-  day: number;       // 對齊新版資料結構
+  price: number;
+  day: number;
   isHotel?: boolean;
   images: string[];
   time?: string;     // [舊版相容]
+  locationSource?: LocationSource; // [舊版相容] 未提供時視為 manual
 }
 
 /**
@@ -39,7 +39,7 @@ export interface InitialTripEvent extends Partial<TripEvent> {
 }
 
 /**
- * 4. 日期區塊定義 (解決 Store 報錯關鍵)
+ * 4. 日期區塊定義
  */
 export interface TripDay {
   date: string;
@@ -49,7 +49,7 @@ export interface TripDay {
 }
 
 /**
- * 5. 清單項目定義 (解決 ListView 報錯關鍵)
+ * 5. 清單項目定義
  */
 export interface ListItem {
   id: string;
@@ -65,6 +65,8 @@ export interface HotelInfo {
   name: string;
   address: string;
 }
+
+export type SyncStatus = 'local-only' | 'syncing' | 'synced' | 'sync-failed';
 
 /**
  * 7. 預算紀錄 (擴充功能預備)
