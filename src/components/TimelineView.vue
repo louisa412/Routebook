@@ -38,10 +38,10 @@
           <button
             v-if="tripStore.getResolvedEventLocation(event)"
             type="button"
-            class="text-[#757199] text-[10px] flex items-center gap-0.5 min-w-0 truncate"
+            class="text-[#757199] text-[10px] flex items-center gap-0.5 min-w-0 overflow-hidden flex-1"
             @click.stop="openLocationInMaps(event)"
           >
-            📍 <span class="truncate">{{ tripStore.getResolvedEventLocation(event) }}</span>
+            <span class="flex-shrink-0">📍</span><span class="truncate ml-0.5">{{ tripStore.getResolvedEventLocation(event) }}</span>
           </button>
         </div>
         <h3 class="text-[#231F40] text-[13px] font-black truncate">{{ event.title }}</h3>
@@ -70,7 +70,7 @@
               class="text-[#757199] text-[10px] flex items-center gap-1 truncate"
               @click.stop="openLocationInMaps(event)"
             >
-              📍 <span class="truncate">{{ tripStore.getResolvedEventLocation(event) }}</span>
+              <span class="flex-shrink-0">📍</span><span class="truncate ml-0.5">{{ tripStore.getResolvedEventLocation(event) }}</span>
             </button>
           </div>
         </div>
