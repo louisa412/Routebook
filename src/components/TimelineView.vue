@@ -1,5 +1,5 @@
 <template>
-  <div class="timeline-container bg-[#EFEEF7] min-h-screen">
+  <div class="timeline-container bg-[#EFEEF7] min-h-screen relative">
     <nav class="sticky top-0 z-30 bg-[#EFEEF7]/90 backdrop-blur-md p-4 flex gap-3 overflow-x-auto no-scrollbar border-b border-[#6D5FB1]/5">
       <button
         v-for="(day, index) in tripStore.days" :key="index"
@@ -12,14 +12,24 @@
       </button>
     </nav>
 
-    <main class="px-4 pt-6 pb-32 relative">
-      <div v-for="hour in 24" :key="hour - 1" class="flex h-[120px] border-t border-[#DEDAF4]/30 relative cursor-pointer" @click="$emit('addNew', hour - 1)">
-        <div class="w-12 flex flex-col items-end pr-3">
-          <span class="text-[10px] font-black text-[#757199]/60 mt-[-6px] bg-[#EFEEF7] px-1 z-10">
+    <main class="px-4 pt-6 pb-40 relative">
+      <!-- 時間格線（可點擊新增） -->
+      <div
+        v-for="hour in 24" :key="hour - 1"
+        class="flex h-[120px] border-t border-[#DEDAF4]/30 relative"
+      >
+        <div class="w-12 flex flex-col items-end pr-3 flex-shrink-0">
+          <span class="text-[10px] font-black text-[#757199]/60 mt-[-6px] bg-[#EFEEF7] px-1 z-10 relative">
             {{ String(hour - 1).padStart(2, '0') }}:00
           </span>
         </div>
-        <div class="absolute left-[48px] top-0 bottom-0 border-r border-dashed border-[#DEDAF4]"></div>
+        <!-- 點擊區域 -->
+        <div
+          class="flex-1 relative cursor-pointer hover:bg-[#6D5FB1]/5 transition-colors rounded-r-lg"
+          @click="$emit('addNew', hour - 1)"
+        >
+          <div class="absolute left-0 top-0 bottom-0 border-l border-dashed border-[#DEDAF4]"></div>
+        </div>
       </div>
 
       <!-- 區段事件 -->
@@ -27,7 +37,7 @@
         v-for="event in rangeEvents" :key="event.id"
         class="absolute left-[65px] right-4 bg-white p-4 rounded-[24px] shadow-lg border-l-[6px] transition-all active:scale-[0.98] z-20 overflow-hidden cursor-pointer"
         :style="getRangeStyle(event)"
-        @click="$emit('edit', event)"
+        @click.stop="$emit('edit', event)"
       >
         <div class="flex items-center gap-2 mb-1">
           <span class="bg-[#EFEEF7] text-[#6D5FB1] text-[10px] font-black px-2 py-0.5 rounded-full">
@@ -50,7 +60,7 @@
         v-for="event in pointEvents" :key="event.id"
         class="absolute left-[52px] right-4 z-20 cursor-pointer"
         :style="getPointStyle(event)"
-        @click="$emit('edit', event)"
+        @click.stop="$emit('edit', event)"
       >
         <div class="flex items-center gap-2">
           <div class="flex-shrink-0 flex items-center gap-1.5">
@@ -75,6 +85,12 @@
         </div>
       </div>
     </main>
+
+    <!-- FAB 新增按鈕 -->
+    <button
+      @click="$emit('addNew', 9)"
+      class="fixed bottom-28 right-6 z-30 w-14 h-14 bg-[#6D5FB1] text-white rounded-full shadow-xl shadow-[#6D5FB1]/30 text-2xl flex items-center justify-center active:scale-90 transition-all"
+    >+</button>
   </div>
 </template>
 
