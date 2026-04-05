@@ -9,6 +9,20 @@
         </div>
 
         <div class="space-y-5">
+          <!-- 行程分類 -->
+          <div>
+            <label class="field-label">行程分類（影響顏色）</label>
+            <div class="grid grid-cols-3 gap-2">
+              <button v-for="cat in eventCategories" :key="cat.id" type="button"
+                class="py-2.5 rounded-[14px] text-xs font-black border-2 transition-all flex flex-col items-center gap-1"
+                :class="form.category === cat.id ? 'border-[#6D5FB1] bg-[#6D5FB1] text-white' : 'border-transparent bg-white text-[#757199]'"
+                @click="form.category = cat.id; form.budgetCategory = categoryToMoze[cat.id]">
+                <span>{{ cat.icon }}</span>
+                <span>{{ cat.name }}</span>
+              </button>
+            </div>
+          </div>
+
           <!-- 事件類型 -->
           <div>
             <label class="field-label">事件類型</label>
@@ -122,6 +136,18 @@ const props = defineProps<{ isOpen: boolean; event: TripEvent | null; isNew?: bo
 const emit = defineEmits(['close'])
 const tripStore = useTripStore()
 const mozeCats = MOZE_CATEGORIES
+const eventCategories = [
+  { id: 'transport', name: '交通', icon: '🚆' },
+  { id: 'food',      name: '美食', icon: '🍜' },
+  { id: 'spot',      name: '景點', icon: '🏯' },
+  { id: 'shopping',  name: '購物', icon: '🛍' },
+  { id: 'hotel',     name: '住宿', icon: '🏨' },
+  { id: 'todo',      name: '其他', icon: '📌' },
+]
+const categoryToMoze: Record<string, string> = {
+  transport: '交通', food: '飲食', spot: '娛樂',
+  shopping: '購物', hotel: '生活', todo: '其他'
+}
 const form = ref<TripEvent>({} as TripEvent)
 
 const lodgingPreview = computed(() => {

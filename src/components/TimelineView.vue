@@ -39,7 +39,7 @@
         :style="getRangeStyle(event)"
         @click.stop="$emit('edit', event)"
       >
-        <div class="flex items-center gap-2 mb-1">
+        <div class="flex items-center gap-2 mb-1 flex-wrap">
           <span class="bg-[#EFEEF7] text-[#6D5FB1] text-[10px] font-black px-2 py-0.5 rounded-full">
             {{ event.startTime }} – {{ event.endTime }}
           </span>
