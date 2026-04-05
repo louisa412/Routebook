@@ -13,7 +13,7 @@ import ImportModal from './components/ImportModal.vue'
 import NewTripModal from './components/NewTripModal.vue'
 
 const tripStore = useTripStore()
-const { initAuth } = useFirebaseSync()
+const { initAuth, syncStatus, lastSyncError } = useFirebaseSync()
 
 onMounted(() => initAuth())
 
@@ -78,6 +78,8 @@ const isNewTrip = ref(false)
       <ListsPage v-if="currentTab === 'lists'" />
       <BudgetView v-if="currentTab === 'budget'" />
       <MorePage v-if="currentTab === 'more'"
+        :sync-status="syncStatus"
+        :sync-error="lastSyncError"
         @openImport="isImporting = true"
         @openNewTrip="isNewTrip = true"
       />
