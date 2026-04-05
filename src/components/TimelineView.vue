@@ -61,12 +61,12 @@
           class="flex-1 flex items-center gap-2 px-3 py-2 rounded-[14px] border-l-[4px] shadow-sm min-w-0"
           :style="{ backgroundColor: getCategoryColor(event.category) + '18', borderLeftColor: getCategoryColor(event.category) }"
         >
-          <div class="flex-1 min-w-0">
+          <div class="flex-1 min-w-0 flex items-center gap-2">
             <p class="text-[#231F40] text-[13px] font-black truncate">{{ event.title }}</p>
             <button
               v-if="tripStore.getResolvedEventLocation(event)"
               type="button"
-              class="text-[#757199] text-[10px] flex items-center gap-1 mt-0.5"
+              class="text-[#757199] text-[10px] flex items-center gap-1 flex-shrink-0"
               @click.stop="openLocationInMaps(event)"
             >
               📍 {{ tripStore.getResolvedEventLocation(event) }}
