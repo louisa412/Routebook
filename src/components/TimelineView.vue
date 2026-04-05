@@ -13,7 +13,7 @@
     </nav>
 
     <main class="px-4 pt-6 pb-32 relative">
-      <div v-for="hour in 24" :key="hour - 1" class="flex h-[120px] border-t border-[#DEDAF4]/30 relative">
+      <div v-for="hour in 24" :key="hour - 1" class="flex h-[120px] border-t border-[#DEDAF4]/30 relative cursor-pointer" @click="$emit('addNew', hour - 1)">
         <div class="w-12 flex flex-col items-end pr-3">
           <span class="text-[10px] font-black text-[#757199]/60 mt-[-6px] bg-[#EFEEF7] px-1 z-10">
             {{ String(hour - 1).padStart(2, '0') }}:00
