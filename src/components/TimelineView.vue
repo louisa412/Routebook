@@ -13,21 +13,13 @@
     </nav>
 
     <main class="px-4 pt-6 pb-40 relative">
-      <!-- 時間格線（可點擊新增） -->
-      <div
-        v-for="hour in 24" :key="hour - 1"
-        class="flex h-[120px] border-t border-[#DEDAF4]/30 relative"
-      >
+      <div v-for="hour in 24" :key="hour - 1" class="flex h-[120px] border-t border-[#DEDAF4]/30 relative">
         <div class="w-12 flex flex-col items-end pr-3 flex-shrink-0">
           <span class="text-[10px] font-black text-[#757199]/60 mt-[-6px] bg-[#EFEEF7] px-1 z-10 relative">
             {{ String(hour - 1).padStart(2, '0') }}:00
           </span>
         </div>
-        <!-- 點擊區域 -->
-        <div
-          class="flex-1 relative cursor-pointer hover:bg-[#6D5FB1]/5 transition-colors rounded-r-lg"
-          @click="$emit('addNew', hour - 1)"
-        >
+        <div class="flex-1 relative cursor-pointer hover:bg-[#6D5FB1]/5 transition-colors rounded-r-lg" @click="$emit('addNew', hour - 1)">
           <div class="absolute left-0 top-0 bottom-0 border-l border-dashed border-[#DEDAF4]"></div>
         </div>
       </div>
@@ -35,24 +27,24 @@
       <!-- 區段事件 -->
       <div
         v-for="event in rangeEvents" :key="event.id"
-        class="absolute left-[65px] right-4 bg-white p-4 rounded-[24px] shadow-lg border-l-[6px] transition-all active:scale-[0.98] z-20 overflow-hidden cursor-pointer"
+        class="absolute left-[65px] right-4 bg-white px-3 py-2.5 rounded-[20px] shadow-lg border-l-[6px] transition-all active:scale-[0.98] z-20 overflow-hidden cursor-pointer"
         :style="getRangeStyle(event)"
         @click.stop="$emit('edit', event)"
       >
-        <div class="flex items-center gap-2 mb-1 flex-wrap">
-          <span class="bg-[#EFEEF7] text-[#6D5FB1] text-[10px] font-black px-2 py-0.5 rounded-full">
-            {{ event.startTime }} – {{ event.endTime }}
+        <div class="flex items-center gap-2 min-w-0 mb-1">
+          <span class="bg-[#EFEEF7] text-[#6D5FB1] text-[10px] font-black px-2 py-0.5 rounded-full flex-shrink-0">
+            {{ event.startTime }}–{{ event.endTime }}
           </span>
+          <button
+            v-if="tripStore.getResolvedEventLocation(event)"
+            type="button"
+            class="text-[#757199] text-[10px] flex items-center gap-0.5 min-w-0 truncate"
+            @click.stop="openLocationInMaps(event)"
+          >
+            📍 <span class="truncate">{{ tripStore.getResolvedEventLocation(event) }}</span>
+          </button>
         </div>
-        <h3 class="text-[#231F40] text-[14px] font-black truncate">{{ event.title }}</h3>
-        <button
-          v-if="tripStore.getResolvedEventLocation(event)"
-          type="button"
-          class="text-[#757199] text-[10px] flex items-center gap-1 opacity-80 mt-1"
-          @click.stop="openLocationInMaps(event)"
-        >
-          📍 {{ tripStore.getResolvedEventLocation(event) }}
-        </button>
+        <h3 class="text-[#231F40] text-[13px] font-black truncate">{{ event.title }}</h3>
       </div>
 
       <!-- 點狀事件 -->
@@ -64,8 +56,7 @@
       >
         <div class="flex items-center gap-2">
           <div class="flex-shrink-0 flex items-center gap-1.5">
-            <div class="w-2.5 h-2.5 rounded-full border-2 border-white shadow-sm"
-              :style="{ backgroundColor: getCategoryColor(event.category) }"></div>
+            <div class="w-2.5 h-2.5 rounded-full border-2 border-white shadow-sm" :style="{ backgroundColor: getCategoryColor(event.category) }"></div>
             <span class="text-[11px] font-black text-[#757199]">{{ event.startTime }}</span>
           </div>
           <div
@@ -79,14 +70,13 @@
               class="text-[#757199] text-[10px] flex items-center gap-1 truncate"
               @click.stop="openLocationInMaps(event)"
             >
-              📍 {{ tripStore.getResolvedEventLocation(event) }}
+              📍 <span class="truncate">{{ tripStore.getResolvedEventLocation(event) }}</span>
             </button>
           </div>
         </div>
       </div>
     </main>
 
-    <!-- FAB 新增按鈕 -->
     <button
       @click="$emit('addNew', 9)"
       class="fixed bottom-36 right-6 z-30 w-14 h-14 bg-[#6D5FB1] text-white rounded-full shadow-xl shadow-[#6D5FB1]/30 text-2xl flex items-center justify-center active:scale-90 transition-all"
@@ -105,15 +95,9 @@ defineEmits(['edit', 'addNew'])
 
 const HOUR_HEIGHT = 120
 
-const currentDayEvents = computed(() =>
-  tripStore.events.filter(e => e.day === tripStore.currentDayIndex)
-)
-const rangeEvents = computed(() =>
-  currentDayEvents.value.filter(e => (e.eventType ?? 'range') === 'range')
-)
-const pointEvents = computed(() =>
-  currentDayEvents.value.filter(e => e.eventType === 'point')
-)
+const currentDayEvents = computed(() => tripStore.events.filter(e => e.day === tripStore.currentDayIndex))
+const rangeEvents = computed(() => currentDayEvents.value.filter(e => (e.eventType ?? 'range') === 'range'))
+const pointEvents = computed(() => currentDayEvents.value.filter(e => e.eventType === 'point'))
 
 const openLocationInMaps = (event: TripEvent) => {
   const loc = tripStore.getResolvedEventLocation(event)
@@ -126,13 +110,12 @@ const getRangeStyle = (event: TripEvent) => {
   const top = (startH + startM / 60) * HOUR_HEIGHT + 24
   const durationMin = (endH * 60 + endM) - (startH * 60 + startM)
   const height = (durationMin / 60) * HOUR_HEIGHT
-  return { top: `${top}px`, height: `${Math.max(height, 65)}px`, borderLeftColor: getCategoryColor(event.category) }
+  return { top: `${top}px`, height: `${Math.max(height, 52)}px`, borderLeftColor: getCategoryColor(event.category) }
 }
 
 const getPointStyle = (event: TripEvent) => {
   const [h, m] = event.startTime.split(':').map(Number)
-  const top = (h + m / 60) * HOUR_HEIGHT + 24 - 16
-  return { top: `${top}px` }
+  return { top: `${(h + m / 60) * HOUR_HEIGHT + 24 - 16}px` }
 }
 
 const getCategoryColor = (cat: EventCategory) => {
