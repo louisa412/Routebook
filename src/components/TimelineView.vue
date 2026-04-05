@@ -53,14 +53,25 @@
         @click="$emit('edit', event)"
       >
         <div class="flex-shrink-0 flex items-center gap-1.5">
-          <div class="w-2.5 h-2.5 rounded-full border-2 border-white shadow-sm" :style="{ backgroundColor: getCategoryColor(event.category) }"></div>
+          <div class="w-2.5 h-2.5 rounded-full border-2 border-white shadow-sm"
+            :style="{ backgroundColor: getCategoryColor(event.category) }"></div>
           <span class="text-[11px] font-black text-[#757199]">{{ event.startTime }}</span>
         </div>
         <div
           class="flex-1 flex items-center gap-2 px-3 py-2 rounded-[14px] border-l-[4px] shadow-sm min-w-0"
           :style="{ backgroundColor: getCategoryColor(event.category) + '18', borderLeftColor: getCategoryColor(event.category) }"
         >
-          <span class="text-[#231F40] text-[13px] font-black truncate">{{ event.title }}</span>
+          <div class="flex-1 min-w-0">
+            <p class="text-[#231F40] text-[13px] font-black truncate">{{ event.title }}</p>
+            <button
+              v-if="tripStore.getResolvedEventLocation(event)"
+              type="button"
+              class="text-[#757199] text-[10px] flex items-center gap-1 mt-0.5"
+              @click.stop="openLocationInMaps(event)"
+            >
+              📍 {{ tripStore.getResolvedEventLocation(event) }}
+            </button>
+          </div>
         </div>
       </div>
     </main>
