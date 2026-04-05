@@ -6,7 +6,6 @@
         {{ isOpen ? '收合' : '展開' }}
       </button>
     </div>
-
     <div v-if="isOpen" class="space-y-2">
       <div class="flex gap-2">
         <input
@@ -17,16 +16,10 @@
         />
         <button class="mini-btn" @click="handleAdd">新增</button>
       </div>
-
       <div class="flex flex-wrap gap-2">
         <div v-for="cat in categories" :key="cat" class="cat-chip">
           <template v-if="editingName === cat">
-            <input
-              v-model="editBuffer"
-              class="chip-input"
-              @keyup.enter="saveRename(cat)"
-              @blur="saveRename(cat)"
-            />
+            <input v-model="editBuffer" class="chip-input" @keyup.enter="saveRename(cat)" @blur="saveRename(cat)" />
           </template>
           <template v-else>
             <span class="cat-text">{{ cat }}</span>
@@ -41,50 +34,20 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
-
 defineProps<{ categories: string[] }>()
-
-const emit = defineEmits<{
-  add: [string]
-  rename: [{ from: string; to: string }]
-  delete: [string]
-}>()
-
+const emit = defineEmits<{ add: [string]; rename: [{ from: string; to: string }]; delete: [string] }>()
 const isOpen = ref(false)
 const newCategory = ref('')
 const editingName = ref<string | null>(null)
 const editBuffer = ref('')
-
-const handleAdd = () => {
-  const trimmed = newCategory.value.trim()
-  if (!trimmed) return
-  emit('add', trimmed)
-  newCategory.value = ''
-}
-
-const startRename = (cat: string) => {
-  editingName.value = cat
-  editBuffer.value = cat
-}
-
-const saveRename = (from: string) => {
-  if (editingName.value !== from) return
-  const to = editBuffer.value.trim()
-  editingName.value = null
-  if (!to || to === from) return
-  emit('rename', { from, to })
-}
+const handleAdd = () => { const t = newCategory.value.trim(); if (!t) return; emit('add', t); newCategory.value = '' }
+const startRename = (cat: string) => { editingName.value = cat; editBuffer.value = cat }
+const saveRename = (from: string) => { if (editingName.value !== from) return; const to = editBuffer.value.trim(); editingName.value = null; if (!to || to === from) return; emit('rename', { from, to }) }
 </script>
 
 <style scoped>
-.mini-btn {
-  background: #6D5FB1; color: white; border: none;
-  border-radius: 10px; padding: 0 12px; font-size: 12px; font-weight: 700;
-}
-.cat-chip {
-  display: inline-flex; align-items: center; gap: 4px;
-  background: #F8F7FF; border: 1px solid #E7E3FA; border-radius: 999px; padding: 4px 8px;
-}
+.mini-btn { background: #6D5FB1; color: white; border: none; border-radius: 10px; padding: 0 12px; font-size: 12px; font-weight: 700; }
+.cat-chip { display: inline-flex; align-items: center; gap: 4px; background: #F8F7FF; border: 1px solid #E7E3FA; border-radius: 999px; padding: 4px 8px; }
 .cat-text { font-size: 12px; color: #5F5A83; font-weight: 700; }
 .chip-icon { border: none; background: transparent; font-size: 11px; padding: 0; line-height: 1; }
 .chip-input { border: none; background: transparent; font-size: 12px; min-width: 72px; outline: none; color: #5F5A83; }

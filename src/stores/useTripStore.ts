@@ -6,31 +6,28 @@ import { resolveEventLocation } from '../utils/location'
 import { normalizeEvent, normalizeLodging } from './helpers'
 
 export const useTripStore = defineStore('trip', () => {
-  // ── 行程基本資訊 ──────────────────────────────────────────────
   const tripName = ref('福岡春季漫遊 2026')
   const startDate = ref('2026-04-08')
   const totalDays = ref(6)
   const currentDayIndex = ref(0)
+  const exchangeRate = ref(0.22)
 
-  // ── 活動 ──────────────────────────────────────────────────────
   const events = ref<TripEvent[]>(
     FUKUOKA_EVENTS.map((event, index) =>
       normalizeEvent(event, `event-${Date.now()}-${index}`)
     )
   )
 
-  // ── 住宿 ──────────────────────────────────────────────────────
   const lodging = ref<Record<number, { name: string; address: string }>>({
     ...FUKUOKA_LODGING
   })
 
-  // ── 預算 ──────────────────────────────────────────────────────
   const totalBudget = ref(50000)
+
   const totalSpent = computed(() =>
     events.value.reduce((sum, e) => sum + (Number(e.price) || 0), 0)
   )
 
-  // ── 天數列表（computed）──────────────────────────────────────
   const DAY_LABELS = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT']
   const days = computed<TripDay[]>(() =>
     Array.from({ length: totalDays.value }, (_, i) => {
@@ -47,7 +44,6 @@ export const useTripStore = defineStore('trip', () => {
     })
   )
 
-  // ── 活動 CRUD ────────────────────────────────────────────────
   let _saveToCloud: () => void = () => {}
   const setSaveToCloud = (fn: () => void) => { _saveToCloud = fn }
 
@@ -68,7 +64,6 @@ export const useTripStore = defineStore('trip', () => {
     _saveToCloud()
   }
 
-  // ── 住宿 ────────────────────────────────────────────────────
   const updateLodging = (day: number, payload: { name: string; address: string }) => {
     lodging.value = {
       ...lodging.value,
@@ -77,15 +72,37 @@ export const useTripStore = defineStore('trip', () => {
     _saveToCloud()
   }
 
+  const updateExchangeRate = (rate: number) => {
+    exchangeRate.value = rate
+    _saveToCloud()
+  }
+
+  // ── 新旅行：清空行程，保留清單與設定 ──────────────────────────
+  const resetTrip = (payload: {
+    name: string
+    start: string    // 'YYYY-MM-DD'
+    days: number
+    budget: number
+  }) => {
+    tripName.value = payload.name
+    startDate.value = payload.start
+    totalDays.value = payload.days
+    totalBudget.value = payload.budget
+    currentDayIndex.value = 0
+    events.value = []
+    lodging.value = {}
+    _saveToCloud()
+  }
+
   const getResolvedEventLocation = (event: TripEvent): string =>
     resolveEventLocation(event, lodging.value)
 
-  // ── 從雲端載入（由 useFirebaseSync 呼叫）─────────────────────
   const loadFromCloud = (data: Record<string, any>) => {
     if (data.tripName) tripName.value = data.tripName
     if (data.startDate) startDate.value = data.startDate
     if (data.totalDays) totalDays.value = data.totalDays
     if (data.totalBudget) totalBudget.value = Number(data.totalBudget) || 0
+    if (data.exchangeRate) exchangeRate.value = Number(data.exchangeRate) || 0.22
     if (Array.isArray(data.events)) {
       events.value = data.events.map((event: any, i: number) =>
         normalizeEvent(event, `cloud-event-${Date.now()}-${i}`)
@@ -97,9 +114,9 @@ export const useTripStore = defineStore('trip', () => {
   return {
     tripName, startDate, totalDays, currentDayIndex,
     days, events, lodging, totalBudget, totalSpent,
+    exchangeRate, updateExchangeRate,
     addEvent, updateEvent, deleteEvent,
     updateLodging, getResolvedEventLocation,
-    loadFromCloud,
-    setSaveToCloud
+    resetTrip, loadFromCloud, setSaveToCloud
   }
 }, { persist: true })

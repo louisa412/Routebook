@@ -5,17 +5,31 @@
 export type EventCategory = 'transport' | 'food' | 'spot' | 'hotel' | 'shopping' | 'todo'
 export type LocationSource = 'manual' | 'lodging'
 export type EventType = 'range' | 'point'
-export type Currency = 'JPY' | 'TWD'
 
+/**
+ * MOZE 預算分類
+ * 對應 MOZE app 的支出分類，方便對帳
+ */
 export type MozeCategory =
-  | '交通' | '家居' | '飲食' | '娛樂' | '購物'
-  | '二三次元周邊' | '個人' | '醫療' | '家庭' | '生活' | '學習' | '其他'
+  | '交通'
+  | '家居'
+  | '飲食'
+  | '娛樂'
+  | '購物'
+  | '二三次元周邊'
+  | '個人'
+  | '醫療'
+  | '家庭'
+  | '生活'
+  | '學習'
+  | '其他'
 
 export const MOZE_CATEGORIES: MozeCategory[] = [
   '交通', '家居', '飲食', '娛樂', '購物',
   '二三次元周邊', '個人', '醫療', '家庭', '生活', '學習', '其他'
 ]
 
+/** EventCategory → 預設對應的 MozeCategory */
 export const EVENT_TO_MOZE: Record<EventCategory, MozeCategory> = {
   transport: '交通',
   food:      '飲食',
@@ -34,10 +48,9 @@ export interface TripEvent {
   location: string
   address?: string
   category: EventCategory
-  budgetCategory?: MozeCategory
+  budgetCategory?: MozeCategory  // 預算分類（MOZE 對接用）
   note?: string
   price: number
-  currency?: Currency        // 未設定視為 JPY
   day: number
   isHotel?: boolean
   images: string[]
@@ -65,8 +78,7 @@ export interface ListItem {
   title: string
   category: string
   completed: boolean
-  price?: number
-  currency?: Currency        // 未設定視為 JPY
+  price?: number             // 採購清單用
   budgetCategory?: MozeCategory
 }
 

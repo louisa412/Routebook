@@ -1,15 +1,31 @@
 <template>
   <div v-if="isOpen" class="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4">
     <div class="absolute inset-0 bg-[#231F40]/40 backdrop-blur-sm" @click="$emit('close')"></div>
-
     <div class="relative bg-[#EFEEF7] w-full max-w-lg rounded-t-[32px] sm:rounded-[32px] shadow-2xl overflow-hidden animate-slide-up">
       <div class="p-6 overflow-y-auto max-h-[85vh]">
         <div class="flex justify-between items-center mb-6">
-          <h2 class="text-[#231F40] text-xl font-black">編輯行程</h2>
-          <button @click="$emit('close')" class="text-[#757199] text-2xl">×</button>
+          <h2 class="text-[#231F40] text-xl font-black">{{ isNew ? '新增行程' : '編輯行程' }}</h2>
+          <button @click="$emit('close')" class="text-[#757199] text-2xl leading-none">×</button>
         </div>
 
         <div class="space-y-5">
+          <!-- 事件類型 -->
+          <div>
+            <label class="field-label">事件類型</label>
+            <div class="grid grid-cols-2 gap-3">
+              <button type="button" class="type-btn" :class="form.eventType !== 'point' ? 'type-btn--active' : 'type-btn--inactive'" @click="form.eventType = 'range'">
+                <span class="text-lg mb-1">⏱</span>
+                <span class="font-black text-xs">區段事件</span>
+                <span class="text-[10px] opacity-70">有開始與結束時間</span>
+              </button>
+              <button type="button" class="type-btn" :class="form.eventType === 'point' ? 'type-btn--active' : 'type-btn--inactive'" @click="form.eventType = 'point'">
+                <span class="text-lg mb-1">📍</span>
+                <span class="font-black text-xs">點狀事件</span>
+                <span class="text-[10px] opacity-70">抵達 / 起飛 / 退房</span>
+              </button>
+            </div>
+          </div>
+
           <!-- 名稱 -->
           <div>
             <label class="field-label">行程名稱</label>
@@ -17,12 +33,12 @@
           </div>
 
           <!-- 時間 -->
-          <div class="grid grid-cols-2 gap-4">
+          <div class="grid gap-4" :class="form.eventType === 'point' ? 'grid-cols-1' : 'grid-cols-2'">
             <div>
-              <label class="field-label">開始時間</label>
+              <label class="field-label">{{ form.eventType === 'point' ? '時間點' : '開始時間' }}</label>
               <input v-model="form.startTime" type="time" class="time-input" />
             </div>
-            <div>
+            <div v-if="form.eventType !== 'point'">
               <label class="field-label">結束時間</label>
               <input v-model="form.endTime" type="time" class="time-input" />
             </div>
@@ -32,48 +48,37 @@
           <div>
             <label class="field-label">地點來源</label>
             <div class="grid grid-cols-2 gap-3">
-              <button
-                type="button"
-                class="source-btn"
-                :class="form.locationSource === 'manual' ? 'source-btn--active' : 'source-btn--inactive'"
-                @click="form.locationSource = 'manual'"
-              >手動輸入地點</button>
-              <button
-                type="button"
-                class="source-btn"
-                :class="form.locationSource === 'lodging' ? 'source-btn--active' : 'source-btn--inactive'"
-                @click="form.locationSource = 'lodging'"
-              >使用當日住宿</button>
+              <button type="button" class="source-btn" :class="form.locationSource === 'manual' ? 'source-btn--active' : 'source-btn--inactive'" @click="form.locationSource = 'manual'">手動輸入地點</button>
+              <button type="button" class="source-btn" :class="form.locationSource === 'lodging' ? 'source-btn--active' : 'source-btn--inactive'" @click="form.locationSource = 'lodging'">使用當日住宿</button>
             </div>
           </div>
 
-          <!-- 地點 + 預算 -->
+          <!-- 地點 -->
+          <div>
+            <label class="field-label">地點</label>
+            <input
+              v-model="form.location" type="text"
+              :disabled="form.locationSource === 'lodging'"
+              :placeholder="form.locationSource === 'lodging' ? '已使用當日住宿' : '輸入地點'"
+              class="field-input"
+              :class="form.locationSource === 'lodging' ? 'opacity-50 cursor-not-allowed' : ''"
+            />
+            <p v-if="form.locationSource === 'lodging'" class="text-[11px] text-[#757199] mt-1.5">住宿預覽：{{ lodgingPreview }}</p>
+          </div>
+
+          <!-- 預算 + MOZE 分類 -->
           <div class="grid grid-cols-2 gap-4">
-            <div>
-              <label class="field-label">地點</label>
-              <input
-                v-model="form.location"
-                type="text"
-                :disabled="form.locationSource === 'lodging'"
-                :placeholder="form.locationSource === 'lodging' ? '已使用當日住宿' : '輸入地點'"
-                class="field-input"
-                :class="form.locationSource === 'lodging' ? 'opacity-50 cursor-not-allowed' : ''"
-              />
-              <p v-if="form.locationSource === 'lodging'" class="text-[11px] text-[#757199] mt-2">
-                住宿預覽：{{ lodgingPreview }}
-              </p>
-            </div>
             <div>
               <label class="field-label">預算 (JPY)</label>
               <input v-model.number="form.price" type="number" class="field-input text-[#6D5FB1] font-bold" />
             </div>
+            <div>
+              <label class="field-label">MOZE 分類</label>
+              <select v-model="form.budgetCategory" class="field-input text-sm cursor-pointer">
+                <option v-for="bc in mozeCats" :key="bc" :value="bc">{{ bc }}</option>
+              </select>
+            </div>
           </div>
-
-          <!-- 圖片上傳 -->
-          <ImageUploader
-            v-model="form.images"
-            :storage-path="`trips/${tripStore.tripName}/${form.id}`"
-          />
 
           <!-- 備註 -->
           <div>
@@ -83,8 +88,9 @@
 
           <!-- 操作 -->
           <div class="flex gap-3 pt-4 pb-2">
+            <button v-if="!isNew" @click="handleDelete" class="px-5 py-4 rounded-[20px] text-red-400 font-bold bg-white border border-red-200 active:scale-95 transition-transform">刪除</button>
             <button @click="$emit('close')" class="flex-1 py-4 rounded-[20px] text-[#757199] font-bold bg-white active:scale-95 transition-transform">取消</button>
-            <button @click="handleSave" class="flex-1 py-4 rounded-[20px] text-white font-bold bg-[#6D5FB1] shadow-lg shadow-[#6D5FB1]/20 active:scale-95 transition-transform">儲存行程</button>
+            <button @click="handleSave" class="flex-1 py-4 rounded-[20px] text-white font-bold bg-[#6D5FB1] shadow-lg active:scale-95 transition-transform">儲存</button>
           </div>
         </div>
       </div>
@@ -95,13 +101,13 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { useTripStore } from '../stores/useTripStore'
-import type { TripEvent } from '../types'
-import ImageUploader from './ImageUploader.vue'
+import type { TripEvent, MozeCategory } from '../types'
+import { MOZE_CATEGORIES, EVENT_TO_MOZE } from '../types'
 
-const props = defineProps<{ isOpen: boolean; event: TripEvent | null }>()
+const props = defineProps<{ isOpen: boolean; event: TripEvent | null; isNew?: boolean }>()
 const emit = defineEmits(['close'])
-
 const tripStore = useTripStore()
+const mozeCats = MOZE_CATEGORIES
 const form = ref<TripEvent>({} as TripEvent)
 
 const lodgingPreview = computed(() => {
@@ -114,31 +120,38 @@ watch(() => props.event, (newVal) => {
   if (newVal) {
     form.value = {
       ...JSON.parse(JSON.stringify(newVal)),
-      locationSource: newVal.locationSource === 'lodging' ? 'lodging' : 'manual'
+      eventType: newVal.eventType ?? 'range',
+      locationSource: newVal.locationSource === 'lodging' ? 'lodging' : 'manual',
+      budgetCategory: newVal.budgetCategory || EVENT_TO_MOZE[newVal.category] || '其他'
     }
   }
 }, { immediate: true })
 
 const handleSave = () => {
-  if (form.value.endTime <= form.value.startTime) {
-    alert('J 人提示：結束時間必須晚於開始時間喔！')
-    return
+  if (!form.value.title?.trim()) { alert('請填寫行程名稱'); return }
+  if (form.value.eventType !== 'point' && form.value.endTime <= form.value.startTime) {
+    alert('結束時間必須晚於開始時間'); return
   }
-  tripStore.updateEvent({ ...form.value })
+  if (props.isNew) { tripStore.addEvent({ ...form.value }) }
+  else { tripStore.updateEvent({ ...form.value }) }
   emit('close')
+}
+
+const handleDelete = () => {
+  if (confirm('確定刪除這筆行程？')) { tripStore.deleteEvent(form.value.id); emit('close') }
 }
 </script>
 
 <style scoped>
 .animate-slide-up { animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
 @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
-
-.field-label { @apply text-[#757199] text-[10px] font-bold uppercase tracking-widest mb-2 block; }
-.field-input { @apply w-full bg-white border-none rounded-[18px] p-4 text-[#231F40] font-bold shadow-sm focus:ring-2 focus:ring-[#6D5FB1] outline-none; }
-.time-input { @apply w-full bg-white border-none rounded-[18px] p-3 text-center font-bold text-[#6D5FB1] shadow-sm outline-none cursor-pointer; }
-.source-btn { @apply py-3 px-3 rounded-[14px] text-xs font-bold border transition-colors; }
-.source-btn--active { @apply bg-[#6D5FB1] text-white border-[#6D5FB1]; }
-.source-btn--inactive { @apply bg-white text-[#757199] border-transparent; }
-
-input[type="time"] { -webkit-appearance: none; min-height: 44px; }
+.field-label { display: block; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: #757199; margin-bottom: 8px; }
+.field-input { width: 100%; background: white; border: none; border-radius: 18px; padding: 16px; color: #231F40; font-weight: 700; box-shadow: 0 2px 8px rgba(0,0,0,0.06); outline: none; box-sizing: border-box; }
+.time-input { width: 100%; background: white; border: none; border-radius: 18px; padding: 12px; text-align: center; font-weight: 700; color: #6D5FB1; box-shadow: 0 2px 8px rgba(0,0,0,0.06); outline: none; min-height: 44px; -webkit-appearance: none; }
+.type-btn { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 12px 8px; border-radius: 16px; border: 2px solid transparent; transition: all 0.2s; gap: 2px; }
+.type-btn--active { background: #6D5FB1; color: white; border-color: #6D5FB1; }
+.type-btn--inactive { background: white; color: #757199; }
+.source-btn { padding: 12px; border-radius: 14px; font-size: 12px; font-weight: 700; border: 2px solid transparent; transition: all 0.2s; width: 100%; }
+.source-btn--active { background: #6D5FB1; color: white; border-color: #6D5FB1; }
+.source-btn--inactive { background: white; color: #757199; }
 </style>

@@ -4,17 +4,13 @@
       <h3>住宿設定</h3>
       <span class="text-xs text-[#757199]">修改後會同步到使用「當日住宿」的行程</span>
     </div>
-
     <div class="lodging-list">
       <div v-for="day in sortedDays" :key="day" class="lodging-item">
         <p class="lodging-day">{{ dayLabel(day) }}</p>
-
         <label class="field-label">住宿名稱</label>
         <input v-model="draft[day].name" class="field-input" placeholder="例如：福岡皇家花園酒店" />
-
         <label class="field-label">住宿地址</label>
         <input v-model="draft[day].address" class="field-input" placeholder="例如：福岡市博多區..." />
-
         <button @click="save(day)" class="save-btn">儲存 Day {{ day + 1 }} 住宿</button>
       </div>
     </div>
@@ -24,30 +20,12 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import { useTripStore } from '../../stores/useTripStore'
-
 const tripStore = useTripStore()
-
 const draft = ref<Record<number, { name: string; address: string }>>({})
-
-watch(
-  () => tripStore.lodging,
-  (newLodging) => { draft.value = JSON.parse(JSON.stringify(newLodging || {})) },
-  { immediate: true, deep: true }
-)
-
-const sortedDays = computed(() =>
-  Object.keys(draft.value).map(Number).sort((a, b) => a - b)
-)
-
-const dayLabel = (day: number) => {
-  const info = tripStore.days[day]
-  return info ? `${info.dayTitle} · ${info.displayLabel}` : `Day ${day + 1}`
-}
-
-const save = (day: number) => {
-  if (!draft.value[day]) draft.value[day] = { name: '', address: '' }
-  tripStore.updateLodging(day, draft.value[day])
-}
+watch(() => tripStore.lodging, (newLodging) => { draft.value = JSON.parse(JSON.stringify(newLodging || {})) }, { immediate: true, deep: true })
+const sortedDays = computed(() => Object.keys(draft.value).map(Number).sort((a, b) => a - b))
+const dayLabel = (day: number) => { const info = tripStore.days[day]; return info ? `${info.dayTitle} · ${info.displayLabel}` : `Day ${day + 1}` }
+const save = (day: number) => { if (!draft.value[day]) draft.value[day] = { name: '', address: '' }; tripStore.updateLodging(day, draft.value[day]) }
 </script>
 
 <style scoped>
