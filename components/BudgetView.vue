@@ -51,7 +51,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import { useTripStore } from '../stores/tripStore'
+import { useTripStore } from '../stores/useTripStore'
 
 const tripStore = useTripStore()
 

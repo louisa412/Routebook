@@ -79,7 +79,7 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 import type { TripEvent } from '../types'
-import { useTripStore } from '../stores/tripStore'
+import { useTripStore } from '../stores/useTripStore'
 
 const props = defineProps<{
   event: TripEvent

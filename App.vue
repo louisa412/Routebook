@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import { useTripStore } from './stores/tripStore'
+import { ref, onMounted, computed } from 'vue'
+import { useTripStore } from './stores/useTripStore'
 import { useListStore } from './stores/useListStore'
 import { useFirebaseSync } from './stores/useFirebaseSync'
 import type { TripEvent, ListItem } from './types'
@@ -13,36 +13,39 @@ import ProfileView from './components/ProfileView.vue'
 
 const tripStore = useTripStore()
 const listStore = useListStore()
-const firebaseSync = useFirebaseSync()
-const currentTab = ref('timeline')
+const { initAuth } = useFirebaseSync()
 
+onMounted(() => initAuth())
+
+// ── Tab ───────────────────────────────────────────────────────
+const currentTab = ref('timeline')
 const tabs = [
   { id: 'timeline', name: '行程' },
-  { id: 'todo', name: '待辦' },
-  { id: 'shop', name: '購物' },
-  { id: 'packing', name: '行李' },
-  { id: 'budget', name: '預算' },
-  { id: 'profile', name: '個人' }
+  { id: 'todo',     name: '待辦' },
+  { id: 'shop',     name: '購物' },
+  { id: 'packing',  name: '行李' },
+  { id: 'budget',   name: '預算' },
+  { id: 'profile',  name: '個人' }
 ]
 
-onMounted(() => {
-  firebaseSync.initAuth()
-})
+// ── 預算進度 ──────────────────────────────────────────────────
+const budgetProgress = computed(() =>
+  Math.min((tripStore.totalSpent / (tripStore.totalBudget || 1)) * 100, 100)
+)
 
+// ── 行程編輯 ──────────────────────────────────────────────────
 const isEditing = ref(false)
 const selectedEvent = ref<TripEvent | null>(null)
 
 const prepareAdd = (hour: number) => {
-  const startStr = `${String(hour).padStart(2, '0')}:00`
-  const endStr = `${String(hour + 1).padStart(2, '0')}:00`
-
+  const pad = (n: number) => String(n).padStart(2, '0')
   selectedEvent.value = {
     id: `event-${Date.now()}`,
     title: '',
     location: '',
     category: 'spot',
-    startTime: startStr,
-    endTime: endStr,
+    startTime: `${pad(hour)}:00`,
+    endTime: `${pad(hour + 1)}:00`,
     price: 0,
     day: tripStore.currentDayIndex,
     images: [],
@@ -57,23 +60,13 @@ const openEdit = (event: TripEvent) => {
   selectedEvent.value = event
   isEditing.value = true
 }
-
-const handleTodoUpdate = (item: ListItem) => {
-  listStore.updateTodo(item)
-}
-
-const handleShopUpdate = (item: ListItem) => {
-  listStore.updateShoppingItem(item)
-}
-
-const handlePackingUpdate = (item: ListItem) => {
-  listStore.updatePackingItem(item)
-}
 </script>
 
 <template>
   <div class="app-container bg-[#EFEEF7] min-h-screen">
-    <header class="header sticky top-0 z-40 bg-[#EFEEF7]/80 backdrop-blur-xl px-6 py-4 border-b border-[#6D5FB1]/10">
+
+    <!-- Header -->
+    <header class="sticky top-0 z-40 bg-[#EFEEF7]/80 backdrop-blur-xl px-6 py-4 border-b border-[#6D5FB1]/10">
       <div class="flex justify-between items-end mb-3">
         <h1 class="text-[#6D5FB1] text-xl font-black tracking-tight">{{ tripStore.tripName }}</h1>
         <div class="text-[11px] font-bold text-[#757199] uppercase tracking-wider">
@@ -83,64 +76,56 @@ const handlePackingUpdate = (item: ListItem) => {
       <div class="h-1.5 w-full bg-white rounded-full overflow-hidden shadow-inner">
         <div
           class="h-full bg-[#6D5FB1] transition-all duration-700 ease-out"
-          :style="{ width: Math.min((tripStore.totalSpent / (tripStore.totalBudget || 1) * 100), 100) + '%' }"
+          :style="{ width: budgetProgress + '%' }"
         ></div>
       </div>
     </header>
 
+    <!-- Main -->
     <main class="pb-32">
-      <TimelineView
-        v-if="currentTab === 'timeline'"
-        @edit="openEdit"
-        @addNew="prepareAdd"
-      />
+      <TimelineView v-if="currentTab === 'timeline'" @edit="openEdit" @addNew="prepareAdd" />
 
       <ListView
         v-if="currentTab === 'todo'"
-        title="待辦清單"
-        placeholder="需要準備什麼..."
-        :items="listStore.todos"
-        :categories="listStore.todoCategories"
-        @add="(data: any) => listStore.addTodo(data.title, data.category)"
-        @update="handleTodoUpdate"
-        @delete="(id: string) => listStore.deleteTodo(id)"
-        @addCategory="(name: string) => listStore.addTodoCategory(name)"
-        @renameCategory="({ from, to }: { from: string; to: string }) => listStore.renameTodoCategory(from, to)"
-        @deleteCategory="(name: string) => listStore.deleteTodoCategory(name)"
+        title="待辦清單" placeholder="需要準備什麼..."
+        :items="listStore.todos" :categories="listStore.todoCategories"
+        @add="(d: any) => listStore.addTodo(d.title, d.category)"
+        @update="listStore.updateTodo"
+        @delete="listStore.deleteTodo"
+        @addCategory="listStore.addTodoCategory"
+        @renameCategory="({ from, to }: any) => listStore.renameTodoCategory(from, to)"
+        @deleteCategory="listStore.deleteTodoCategory"
       />
 
       <ListView
         v-if="currentTab === 'shop'"
-        title="採買清單"
-        placeholder="想買什麼東西..."
-        :items="listStore.shoppingList"
-        :categories="listStore.shoppingCategories"
-        @add="(data: any) => listStore.addShoppingItem(data.title, data.category)"
-        @update="handleShopUpdate"
-        @delete="(id: string) => listStore.deleteShoppingItem(id)"
-        @addCategory="(name: string) => listStore.addShoppingCategory(name)"
-        @renameCategory="({ from, to }: { from: string; to: string }) => listStore.renameShoppingCategory(from, to)"
-        @deleteCategory="(name: string) => listStore.deleteShoppingCategory(name)"
+        title="採買清單" placeholder="想買什麼東西..."
+        :items="listStore.shoppingList" :categories="listStore.shoppingCategories"
+        @add="(d: any) => listStore.addShoppingItem(d.title, d.category)"
+        @update="listStore.updateShoppingItem"
+        @delete="listStore.deleteShoppingItem"
+        @addCategory="listStore.addShoppingCategory"
+        @renameCategory="({ from, to }: any) => listStore.renameShoppingCategory(from, to)"
+        @deleteCategory="listStore.deleteShoppingCategory"
       />
 
       <ListView
         v-if="currentTab === 'packing'"
-        title="行李清單"
-        placeholder="還要帶什麼..."
-        :items="listStore.packingList"
-        :categories="listStore.packingCategories"
-        @add="(data: any) => listStore.addPackingItem(data.title, data.category)"
-        @update="handlePackingUpdate"
-        @delete="(id: string) => listStore.deletePackingItem(id)"
-        @addCategory="(name: string) => listStore.addPackingCategory(name)"
-        @renameCategory="({ from, to }: { from: string; to: string }) => listStore.renamePackingCategory(from, to)"
-        @deleteCategory="(name: string) => listStore.deletePackingCategory(name)"
+        title="行李清單" placeholder="還要帶什麼..."
+        :items="listStore.packingList" :categories="listStore.packingCategories"
+        @add="(d: any) => listStore.addPackingItem(d.title, d.category)"
+        @update="listStore.updatePackingItem"
+        @delete="listStore.deletePackingItem"
+        @addCategory="listStore.addPackingCategory"
+        @renameCategory="({ from, to }: any) => listStore.renamePackingCategory(from, to)"
+        @deleteCategory="listStore.deletePackingCategory"
       />
 
       <BudgetView v-if="currentTab === 'budget'" />
       <ProfileView v-if="currentTab === 'profile'" />
     </main>
 
+    <!-- Bottom Nav -->
     <nav class="fixed bottom-8 left-0 right-0 px-6 z-40">
       <div class="max-w-md mx-auto h-[72px] bg-white/90 backdrop-blur-2xl rounded-[28px] shadow-xl shadow-[#6D5FB1]/10 border border-white flex items-center justify-around px-2 overflow-x-auto no-scrollbar">
         <button
@@ -155,11 +140,7 @@ const handlePackingUpdate = (item: ListItem) => {
       </div>
     </nav>
 
-    <EventEditModal
-      :is-open="isEditing"
-      :event="selectedEvent"
-      @close="isEditing = false"
-    />
+    <EventEditModal :is-open="isEditing" :event="selectedEvent" @close="isEditing = false" />
   </div>
 </template>
 
@@ -180,10 +161,7 @@ body {
   -webkit-tap-highlight-color: transparent;
 }
 
-::-webkit-scrollbar {
-  display: none;
-}
-
+::-webkit-scrollbar { display: none; }
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 </style>

@@ -50,7 +50,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import { useTripStore } from '../stores/tripStore'
+import { useTripStore } from '../stores/useTripStore'
 import type { EventCategory, TripEvent } from '../types'
 import { openGoogleMaps } from '../utils/maps'
 

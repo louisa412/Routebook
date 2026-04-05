@@ -40,7 +40,7 @@
 </template>
 
 <script setup lang="ts">
-import { useTripStore } from '../stores/tripStore'
+import { useTripStore } from '../stores/useTripStore'
 const tripStore = useTripStore()
 </script>
 
