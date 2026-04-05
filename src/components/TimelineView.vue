@@ -89,7 +89,7 @@
     <!-- FAB 新增按鈕 -->
     <button
       @click="$emit('addNew', 9)"
-      class="fixed bottom-28 right-6 z-30 w-14 h-14 bg-[#6D5FB1] text-white rounded-full shadow-xl shadow-[#6D5FB1]/30 text-2xl flex items-center justify-center active:scale-90 transition-all"
+      class="fixed bottom-36 right-6 z-30 w-14 h-14 bg-[#6D5FB1] text-white rounded-full shadow-xl shadow-[#6D5FB1]/30 text-2xl flex items-center justify-center active:scale-90 transition-all"
     >+</button>
   </div>
 </template>
