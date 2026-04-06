@@ -15,8 +15,12 @@
     <main class="px-4 pt-6 pb-40 relative">
       <!-- 時間格線 -->
       <div v-for="hour in 24" :key="hour - 1" class="flex h-[120px] border-t border-[#DEDAF4]/30 relative">
-        <div class="w-24 flex flex-col items-end pr-3 flex-shrink-0">
-          <span class="text-[10px] font-black text-[#757199]/60 mt-[-6px] bg-[#EFEEF7] px-1 z-10 relative">
+        <div class="w-36 flex flex-col items-end pr-3 flex-shrink-0">
+          <!-- 有 point event 的整點不顯示 hour label，避免重疊 -->
+          <span
+            v-if="!occupiedHours.has(hour - 1)"
+            class="text-[10px] font-black text-[#757199]/60 mt-[-6px] bg-[#EFEEF7] px-1 z-10 relative"
+          >
             {{ String(hour - 1).padStart(2, '0') }}:00
           </span>
         </div>
@@ -29,7 +33,7 @@
       <!-- 區段事件（中線右側） -->
       <div
         v-for="event in rangeEvents" :key="event.id"
-        class="absolute left-[100px] right-4 bg-white px-3 py-2.5 rounded-[20px] shadow-lg border-l-[6px] transition-all active:scale-[0.98] z-20 overflow-hidden cursor-pointer"
+        class="absolute left-[148px] right-4 bg-white px-3 py-2.5 rounded-[20px] shadow-lg border-l-[6px] transition-all active:scale-[0.98] z-20 overflow-hidden cursor-pointer"
         :style="getRangeStyle(event)"
         @click.stop="$emit('edit', event)"
       >
@@ -58,7 +62,7 @@
       >
         <div
           class="flex flex-col items-end cursor-pointer"
-          style="width: 112px;"
+          style="width: 160px;"
           @click.stop="togglePoint(event.id)"
         >
           <!-- 時間 -->
@@ -70,26 +74,26 @@
           <span class="text-[10px] font-black text-[#231F40] pr-2 text-right leading-tight truncate w-full">
             {{ event.title }}
           </span>
-          <!-- 展開地點 -->
-          <div
-            v-if="expandedPointId === event.id && tripStore.getResolvedEventLocation(event)"
-            class="mt-1 mr-2 bg-white rounded-[10px] shadow-lg px-2 py-1.5 text-left z-30 w-40"
-            style="margin-left: -96px;"
+        </div>
+        <!-- 展開地點：出現在時間軸右側，不遮住左側文字 -->
+        <div
+          v-if="expandedPointId === event.id && tripStore.getResolvedEventLocation(event)"
+          class="absolute bg-white rounded-[14px] shadow-lg px-3 py-2.5 text-left z-30 w-44"
+          style="left: 168px; top: -4px;"
+        >
+          <button
+            type="button"
+            class="text-[10px] text-[#757199] flex items-start gap-1 w-full"
+            @click.stop="openLocationInMaps(event)"
           >
-            <button
-              type="button"
-              class="text-[10px] text-[#757199] flex items-start gap-1 w-full"
-              @click.stop="openLocationInMaps(event)"
-            >
-              <span class="flex-shrink-0">📍</span>
-              <span class="leading-tight">{{ tripStore.getResolvedEventLocation(event) }}</span>
-            </button>
-            <button
-              type="button"
-              class="mt-1.5 text-[10px] text-[#6D5FB1] font-bold w-full text-right"
-              @click.stop="$emit('edit', event)"
-            >編輯 →</button>
-          </div>
+            <span class="flex-shrink-0">📍</span>
+            <span class="leading-tight">{{ tripStore.getResolvedEventLocation(event) }}</span>
+          </button>
+          <button
+            type="button"
+            class="mt-1.5 text-[10px] text-[#6D5FB1] font-bold w-full text-right"
+            @click.stop="$emit('edit', event)"
+          >編輯 →</button>
         </div>
         <!-- 中線上的點 -->
         <div
@@ -126,6 +130,11 @@ const togglePoint = (id: string) => {
 const currentDayEvents = computed(() => tripStore.events.filter(e => e.day === tripStore.currentDayIndex))
 const rangeEvents = computed(() => currentDayEvents.value.filter(e => (e.eventType ?? 'range') === 'range'))
 const pointEvents = computed(() => currentDayEvents.value.filter(e => e.eventType === 'point'))
+
+// 有 point event 的整點 → 隱藏 hour grid label 避免重疊
+const occupiedHours = computed(() =>
+  new Set(pointEvents.value.map(e => parseInt(e.startTime.split(':')[0])))
+)
 
 const openLocationInMaps = (event: TripEvent) => {
   const loc = tripStore.getResolvedEventLocation(event)
