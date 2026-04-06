@@ -32,7 +32,7 @@
       <!-- 區段事件（中線右側） -->
       <div
         v-for="event in rangeEvents" :key="event.id"
-        class="absolute left-[148px] right-4 bg-white px-3 py-2.5 rounded-[20px] shadow-lg border-l-[6px] transition-all active:scale-[0.98] z-20 overflow-hidden cursor-pointer"
+        class="absolute left-[148px] right-4 bg-white px-3 py-2.5 rounded-[20px] shadow-lg border-l-[6px] transition-all active:scale-[0.98] z-20 cursor-pointer"
         :style="getRangeStyle(event)"
         @click.stop="$emit('edit', event)"
       >
@@ -57,7 +57,7 @@
             v-for="(url, idx) in event.images" :key="idx"
             class="w-12 h-12 rounded-[10px] bg-cover bg-center flex-shrink-0 border border-[#DEDAF4]"
             :style="{ backgroundImage: `url(${url})` }"
-            @click.stop="previewImage(url)"
+            @click.stop="previewUrl = url"
           ></div>
         </div>
       </div>
@@ -140,10 +140,6 @@ const togglePoint = (id: string) => {
   expandedPointId.value = expandedPointId.value === id ? null : id
 }
 
-const previewImage = (url: string) => {
-  previewUrl.value = url
-}
-
 const currentDayEvents = computed(() => tripStore.events.filter(e => e.day === tripStore.currentDayIndex))
 const rangeEvents = computed(() => currentDayEvents.value.filter(e => (e.eventType ?? 'range') === 'range'))
 const pointEvents = computed(() => currentDayEvents.value.filter(e => e.eventType === 'point'))
@@ -163,7 +159,7 @@ const getRangeStyle = (event: TripEvent) => {
   const top = (startH + startM / 60) * HOUR_HEIGHT + 24
   const durationMin = (endH * 60 + endM) - (startH * 60 + startM)
   const height = (durationMin / 60) * HOUR_HEIGHT
-  return { top: `${top}px`, height: `${Math.max(height, 52)}px`, borderLeftColor: getCategoryColor(event.category) }
+  return { top: `${top}px`, minHeight: `${Math.max(height, 52)}px`, borderLeftColor: getCategoryColor(event.category) }
 }
 
 const getPointStyle = (event: TripEvent) => {
