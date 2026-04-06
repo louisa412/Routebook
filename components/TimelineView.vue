@@ -15,7 +15,7 @@
     <main class="px-4 pt-6 pb-40 relative">
       <!-- 時間格線 -->
       <div v-for="hour in 24" :key="hour - 1" class="flex h-[120px] border-t border-[#DEDAF4]/30 relative">
-        <div class="w-16 flex flex-col items-end pr-3 flex-shrink-0">
+        <div class="w-24 flex flex-col items-end pr-3 flex-shrink-0">
           <span class="text-[10px] font-black text-[#757199]/60 mt-[-6px] bg-[#EFEEF7] px-1 z-10 relative">
             {{ String(hour - 1).padStart(2, '0') }}:00
           </span>
@@ -29,7 +29,7 @@
       <!-- 區段事件（中線右側） -->
       <div
         v-for="event in rangeEvents" :key="event.id"
-        class="absolute left-[68px] right-4 bg-white px-3 py-2.5 rounded-[20px] shadow-lg border-l-[6px] transition-all active:scale-[0.98] z-20 overflow-hidden cursor-pointer"
+        class="absolute left-[100px] right-4 bg-white px-3 py-2.5 rounded-[20px] shadow-lg border-l-[6px] transition-all active:scale-[0.98] z-20 overflow-hidden cursor-pointer"
         :style="getRangeStyle(event)"
         @click.stop="$emit('edit', event)"
       >
@@ -53,12 +53,12 @@
       <!-- 點狀事件（中線左側） -->
       <div
         v-for="event in pointEvents" :key="event.id"
-        class="absolute left-4 z-20"
+        class="absolute left-0 z-20"
         :style="getPointStyle(event)"
       >
         <div
           class="flex flex-col items-end cursor-pointer"
-          style="width: 64px;"
+          style="width: 112px;"
           @click.stop="togglePoint(event.id)"
         >
           <!-- 時間 -->
