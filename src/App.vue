@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
+import { storeToRefs } from 'pinia'
 import { useTripStore } from './stores/useTripStore'
 import { useFirebaseSync } from './stores/useFirebaseSync'
 import type { TripEvent } from './types'
@@ -13,7 +14,9 @@ import ImportModal from './components/ImportModal.vue'
 import NewTripModal from './components/NewTripModal.vue'
 
 const tripStore = useTripStore()
-const { initAuth, syncStatus, lastSyncError } = useFirebaseSync()
+const firebaseSync = useFirebaseSync()
+const { initAuth } = firebaseSync
+const { syncStatus, lastSyncError } = storeToRefs(firebaseSync)
 
 onMounted(() => initAuth())
 
