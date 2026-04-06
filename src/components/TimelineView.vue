@@ -13,21 +13,23 @@
     </nav>
 
     <main class="px-4 pt-6 pb-40 relative">
+      <!-- 時間格線 -->
       <div v-for="hour in 24" :key="hour - 1" class="flex h-[120px] border-t border-[#DEDAF4]/30 relative">
-        <div class="w-12 flex flex-col items-end pr-3 flex-shrink-0">
+        <div class="w-16 flex flex-col items-end pr-3 flex-shrink-0">
           <span class="text-[10px] font-black text-[#757199]/60 mt-[-6px] bg-[#EFEEF7] px-1 z-10 relative">
             {{ String(hour - 1).padStart(2, '0') }}:00
           </span>
         </div>
-        <div class="flex-1 relative cursor-pointer hover:bg-[#6D5FB1]/5 transition-colors rounded-r-lg" @click="$emit('addNew', hour - 1)">
-          <div class="absolute left-0 top-0 bottom-0 border-l border-dashed border-[#DEDAF4]"></div>
+        <div class="flex-1 relative cursor-pointer hover:bg-[#6D5FB1]/5 transition-colors rounded-r-lg"
+          @click="$emit('addNew', hour - 1)">
+          <div class="absolute left-0 top-0 bottom-0 border-l-2 border-[#DEDAF4]/60"></div>
         </div>
       </div>
 
-      <!-- 區段事件 -->
+      <!-- 區段事件（中線右側） -->
       <div
         v-for="event in rangeEvents" :key="event.id"
-        class="absolute left-[65px] right-4 bg-white px-3 py-2.5 rounded-[20px] shadow-lg border-l-[6px] transition-all active:scale-[0.98] z-20 overflow-hidden cursor-pointer"
+        class="absolute left-[68px] right-4 bg-white px-3 py-2.5 rounded-[20px] shadow-lg border-l-[6px] transition-all active:scale-[0.98] z-20 overflow-hidden cursor-pointer"
         :style="getRangeStyle(event)"
         @click.stop="$emit('edit', event)"
       >
@@ -41,39 +43,60 @@
             class="text-[#757199] text-[10px] flex items-center gap-0.5 min-w-0 overflow-hidden flex-1"
             @click.stop="openLocationInMaps(event)"
           >
-            <span class="flex-shrink-0">📍</span><span class="truncate ml-0.5">{{ tripStore.getResolvedEventLocation(event) }}</span>
+            <span class="flex-shrink-0">📍</span>
+            <span class="truncate ml-0.5">{{ tripStore.getResolvedEventLocation(event) }}</span>
           </button>
         </div>
         <h3 class="text-[#231F40] text-[13px] font-black truncate">{{ event.title }}</h3>
       </div>
 
-      <!-- 點狀事件 -->
+      <!-- 點狀事件（中線左側） -->
       <div
         v-for="event in pointEvents" :key="event.id"
-        class="absolute left-[52px] right-4 z-20 cursor-pointer"
+        class="absolute left-0 z-20"
         :style="getPointStyle(event)"
-        @click.stop="$emit('edit', event)"
       >
-        <div class="flex items-center gap-2">
-          <div class="flex-shrink-0 flex items-center gap-1.5">
-            <div class="w-2.5 h-2.5 rounded-full border-2 border-white shadow-sm" :style="{ backgroundColor: getCategoryColor(event.category) }"></div>
-            <span class="text-[11px] font-black text-[#757199]">{{ event.startTime }}</span>
-          </div>
+        <div
+          class="flex flex-col items-end cursor-pointer"
+          style="width: 64px;"
+          @click.stop="togglePoint(event.id)"
+        >
+          <!-- 時間 -->
+          <span class="text-[11px] font-black pr-2"
+            :style="{ color: getCategoryColor(event.category) }">
+            {{ event.startTime }}
+          </span>
+          <!-- 名稱 -->
+          <span class="text-[10px] font-black text-[#231F40] pr-2 text-right leading-tight truncate w-full">
+            {{ event.title }}
+          </span>
+          <!-- 展開地點 -->
           <div
-            class="flex-1 flex items-center gap-2 px-3 py-2 rounded-[14px] border-l-[4px] shadow-sm min-w-0"
-            :style="{ backgroundColor: getCategoryColor(event.category) + '18', borderLeftColor: getCategoryColor(event.category) }"
+            v-if="expandedPointId === event.id && tripStore.getResolvedEventLocation(event)"
+            class="mt-1 mr-2 bg-white rounded-[10px] shadow-lg px-2 py-1.5 text-left z-30 w-40"
+            style="margin-left: -96px;"
           >
-            <span class="text-[#231F40] text-[13px] font-black truncate flex-shrink-0">{{ event.title }}</span>
             <button
-              v-if="tripStore.getResolvedEventLocation(event)"
               type="button"
-              class="text-[#757199] text-[10px] flex items-center gap-1 truncate"
+              class="text-[10px] text-[#757199] flex items-start gap-1 w-full"
               @click.stop="openLocationInMaps(event)"
             >
-              <span class="flex-shrink-0">📍</span><span class="truncate ml-0.5">{{ tripStore.getResolvedEventLocation(event) }}</span>
+              <span class="flex-shrink-0">📍</span>
+              <span class="leading-tight">{{ tripStore.getResolvedEventLocation(event) }}</span>
             </button>
+            <button
+              type="button"
+              class="mt-1.5 text-[10px] text-[#6D5FB1] font-bold w-full text-right"
+              @click.stop="$emit('edit', event)"
+            >編輯 →</button>
           </div>
         </div>
+        <!-- 中線上的點 -->
+        <div
+          class="absolute w-2.5 h-2.5 rounded-full border-2 border-white shadow-sm"
+          style="right: -5px; top: 4px;"
+          :style="{ backgroundColor: getCategoryColor(event.category) }"
+        ></div>
       </div>
     </main>
 
@@ -85,7 +108,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useTripStore } from '../stores/useTripStore'
 import type { EventCategory, TripEvent } from '../types'
 import { openGoogleMaps } from '../utils/maps'
@@ -94,6 +117,11 @@ const tripStore = useTripStore()
 defineEmits(['edit', 'addNew'])
 
 const HOUR_HEIGHT = 120
+const expandedPointId = ref<string | null>(null)
+
+const togglePoint = (id: string) => {
+  expandedPointId.value = expandedPointId.value === id ? null : id
+}
 
 const currentDayEvents = computed(() => tripStore.events.filter(e => e.day === tripStore.currentDayIndex))
 const rangeEvents = computed(() => currentDayEvents.value.filter(e => (e.eventType ?? 'range') === 'range'))
@@ -115,7 +143,7 @@ const getRangeStyle = (event: TripEvent) => {
 
 const getPointStyle = (event: TripEvent) => {
   const [h, m] = event.startTime.split(':').map(Number)
-  return { top: `${(h + m / 60) * HOUR_HEIGHT + 24 - 16}px` }
+  return { top: `${(h + m / 60) * HOUR_HEIGHT + 24 - 10}px` }
 }
 
 const getCategoryColor = (cat: EventCategory) => {

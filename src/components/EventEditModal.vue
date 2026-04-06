@@ -108,6 +108,12 @@
             </select>
           </div>
 
+          <!-- 照片 -->
+          <ImageUploader
+            v-model="form.images"
+            :storage-path="`trips/${tripStore.tripName}/${form.id}`"
+          />
+
           <!-- 備註 -->
           <div>
             <label class="field-label">備註</label>
@@ -131,6 +137,7 @@ import { computed, ref, watch } from 'vue'
 import { useTripStore } from '../stores/useTripStore'
 import type { TripEvent } from '../types'
 import { MOZE_CATEGORIES, EVENT_TO_MOZE } from '../types'
+import ImageUploader from './ImageUploader.vue'
 
 const props = defineProps<{ isOpen: boolean; event: TripEvent | null; isNew?: boolean }>()
 const emit = defineEmits(['close'])
