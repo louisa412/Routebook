@@ -3,8 +3,11 @@
     <label class="text-[#757199] text-[10px] font-bold uppercase tracking-widest mb-2 block">行程照片</label>
     <div class="flex flex-wrap gap-3">
       <div v-for="(url, idx) in modelValue" :key="idx" class="relative">
-        <div class="w-20 h-20 rounded-[20px] bg-cover bg-center border-2 border-white shadow-sm"
-          :style="{ backgroundImage: `url(${url})` }"></div>
+        <div
+          class="w-20 h-20 rounded-[20px] bg-cover bg-center border-2 border-white shadow-sm cursor-pointer"
+          :style="{ backgroundImage: `url(${url})` }"
+          @click="$emit('preview', url)"
+        ></div>
         <button @click="removeImage(idx)"
           class="absolute -top-2 -right-2 bg-red-400 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs shadow-md">×</button>
       </div>
@@ -18,6 +21,12 @@
         <div class="animate-spin rounded-full h-5 w-5 border-2 border-[#6D5FB1] border-t-transparent"></div>
       </div>
     </div>
+
+    <!-- 全螢幕預覽 -->
+    <div v-if="previewUrl" class="fixed inset-0 z-[100] bg-black/90 flex items-center justify-center" @click="previewUrl = null">
+      <img :src="previewUrl" class="max-w-full max-h-full object-contain rounded-lg" />
+      <button class="absolute top-6 right-6 text-white text-3xl leading-none">×</button>
+    </div>
   </div>
 </template>
 
@@ -25,8 +34,9 @@
 import { ref } from 'vue'
 
 const props = defineProps<{ modelValue: string[]; storagePath: string }>()
-const emit = defineEmits<{ 'update:modelValue': [string[]] }>()
+const emit = defineEmits<{ 'update:modelValue': [string[]]; preview: [string] }>()
 const isUploading = ref(false)
+const previewUrl = ref<string | null>(null)
 
 const CLOUD_NAME = 'dorwexx0o'
 const UPLOAD_PRESET = 'Rootbook'
@@ -40,11 +50,7 @@ const handleUpload = async (e: Event) => {
     formData.append('file', file)
     formData.append('upload_preset', UPLOAD_PRESET)
     formData.append('folder', props.storagePath)
-
-    const res = await fetch(
-      `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`,
-      { method: 'POST', body: formData }
-    )
+    const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, { method: 'POST', body: formData })
     const data = await res.json()
     if (!res.ok) throw new Error(data.error?.message || '上傳失敗')
     emit('update:modelValue', [...props.modelValue, data.secure_url])

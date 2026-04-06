@@ -51,6 +51,15 @@
           </button>
         </div>
         <h3 class="text-[#231F40] text-[13px] font-black truncate">{{ event.title }}</h3>
+        <!-- 照片縮圖 -->
+        <div v-if="event.images && event.images.length > 0" class="flex gap-1.5 mt-2 overflow-x-auto no-scrollbar">
+          <div
+            v-for="(url, idx) in event.images" :key="idx"
+            class="w-12 h-12 rounded-[10px] bg-cover bg-center flex-shrink-0 border border-[#DEDAF4]"
+            :style="{ backgroundImage: `url(${url})` }"
+            @click.stop="previewImage(url)"
+          ></div>
+        </div>
       </div>
 
       <!-- 點狀事件（中線左側） -->
@@ -105,6 +114,12 @@
       @click="$emit('addNew', 9)"
       class="fixed bottom-36 right-6 z-30 w-14 h-14 bg-[#6D5FB1] text-white rounded-full shadow-xl shadow-[#6D5FB1]/30 text-2xl flex items-center justify-center active:scale-90 transition-all"
     >+</button>
+
+    <!-- 全螢幕照片預覽 -->
+    <div v-if="previewUrl" class="fixed inset-0 z-[100] bg-black/90 flex items-center justify-center" @click="previewUrl = null">
+      <img :src="previewUrl" class="max-w-full max-h-full object-contain rounded-lg px-4" />
+      <button class="absolute top-6 right-6 text-white text-4xl leading-none">×</button>
+    </div>
   </div>
 </template>
 
@@ -119,9 +134,14 @@ defineEmits(['edit', 'addNew'])
 
 const HOUR_HEIGHT = 120
 const expandedPointId = ref<string | null>(null)
+const previewUrl = ref<string | null>(null)
 
 const togglePoint = (id: string) => {
   expandedPointId.value = expandedPointId.value === id ? null : id
+}
+
+const previewImage = (url: string) => {
+  previewUrl.value = url
 }
 
 const currentDayEvents = computed(() => tripStore.events.filter(e => e.day === tripStore.currentDayIndex))
