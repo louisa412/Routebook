@@ -23,25 +23,34 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
-import { storage } from '../firebase'
-import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage'
 
 const props = defineProps<{ modelValue: string[]; storagePath: string }>()
 const emit = defineEmits<{ 'update:modelValue': [string[]] }>()
 const isUploading = ref(false)
+
+const CLOUD_NAME = 'dorwexx0o'
+const UPLOAD_PRESET = 'Rootbook'
 
 const handleUpload = async (e: Event) => {
   const file = (e.target as HTMLInputElement).files?.[0]
   if (!file) return
   isUploading.value = true
   try {
-    const fileRef = storageRef(storage, `${props.storagePath}/${Date.now()}_${file.name}`)
-    const snapshot = await uploadBytes(fileRef, file)
-    const url = await getDownloadURL(snapshot.ref)
-    emit('update:modelValue', [...props.modelValue, url])
+    const formData = new FormData()
+    formData.append('file', file)
+    formData.append('upload_preset', UPLOAD_PRESET)
+    formData.append('folder', props.storagePath)
+
+    const res = await fetch(
+      `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`,
+      { method: 'POST', body: formData }
+    )
+    const data = await res.json()
+    if (!res.ok) throw new Error(data.error?.message || '上傳失敗')
+    emit('update:modelValue', [...props.modelValue, data.secure_url])
   } catch (error) {
     console.error('上傳失敗:', error)
-    alert('照片上傳失敗，請檢查網路或 Firebase 設定。')
+    alert('照片上傳失敗，請檢查網路連線。')
   } finally {
     isUploading.value = false
   }
