@@ -25,24 +25,24 @@
     </div>
 
     <div class="space-y-7">
-      <div v-for="(groupItems, categoryName) in groupedItems" :key="categoryName">
+      <div v-for="(categoryItems, categoryName) in groupedItems" :key="categoryName">
         <div class="flex items-center mb-2 px-1">
           <div class="w-1.5 h-4 bg-[#6D5FB1] rounded-full mr-2"></div>
           <h3 class="text-[#757199] text-[11px] font-black uppercase tracking-widest">{{ categoryName }}</h3>
-          <span class="ml-2 text-[10px] bg-[#DEDAF4] text-[#6D5FB1] px-2 py-0.5 rounded-full font-black">{{ groupItems.length }}</span>
+          <span class="ml-2 text-[10px] bg-[#DEDAF4] text-[#6D5FB1] px-2 py-0.5 rounded-full font-black">{{ categoryItems.length }}</span>
           <!-- 分類小計 -->
-          <span v-if="showPrice && getCategoryTotal(groupItems) > 0" class="ml-auto text-[11px] font-black text-[#6D5FB1]">
-            ¥{{ getCategoryTotal(groupItems).toLocaleString() }}
+          <span v-if="showPrice && getCategoryTotal(categoryItems) > 0" class="ml-auto text-[11px] font-black text-[#6D5FB1]">
+            ¥{{ getCategoryTotal(categoryItems).toLocaleString() }}
           </span>
         </div>
 
         <div class="bg-white rounded-[18px] border border-[#6D5FB1]/5 overflow-hidden">
           <ListRow
-            v-for="(item, index) in groupItems"
+            v-for="(item, index) in categoryItems"
             :key="item.id"
             :item="item"
             :categories="categories"
-            :has-border="index !== groupItems.length - 1"
+            :has-border="index !== categoryItems.length - 1"
             :show-price="showPrice"
             @toggle="$emit('update', { ...$event, completed: !$event.completed })"
             @update="$emit('update', $event)"
@@ -61,29 +61,36 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import type { ListItem } from '../types'
+import type { Currency, ListItem, MozeCategory } from '../types'
 import ListAddBar from './list/ListAddBar.vue'
 import CategoryManager from './list/CategoryManager.vue'
 import ListRow from './list/ListRow.vue'
+
+interface ListAddPayload {
+  title: string
+  category: string
+  price?: number
+  currency?: Currency
+  budgetCategory?: MozeCategory
+}
 
 const props = defineProps<{
   title: string
   placeholder: string
   items: ListItem[]
+  groupedItems: Record<string, ListItem[]>
   categories: string[]
   showPrice?: boolean
 }>()
 
-defineEmits(['add', 'delete', 'update', 'addCategory', 'renameCategory', 'deleteCategory'])
-
-const groupedItems = computed(() =>
-  props.items.reduce((acc, item) => {
-    const cat = item.category || '未分類'
-    if (!acc[cat]) acc[cat] = []
-    acc[cat].push(item)
-    return acc
-  }, {} as Record<string, ListItem[]>)
-)
+defineEmits<{
+  add: [ListAddPayload]
+  delete: [string]
+  update: [ListItem]
+  addCategory: [string]
+  renameCategory: [{ from: string; to: string }]
+  deleteCategory: [string]
+}>()
 
 const priceTotal = computed(() =>
   props.items.reduce((sum, item) => sum + (Number(item.price) || 0), 0)
